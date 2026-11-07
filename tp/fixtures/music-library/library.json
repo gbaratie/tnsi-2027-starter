@@ -1,0 +1,25 @@
+{
+  "artists": [
+    {"id": "artist-neon-harbor", "name": "Neon Harbor", "aliases": ["NH"]},
+    {"id": "artist-amina-sol", "name": "Amina Sol", "aliases": []},
+    {"id": "artist-kaito-vale", "name": "Kaito Vale", "aliases": []}
+  ],
+  "albums": [
+    {"id": "album-signals-at-dawn", "title": "Signals at Dawn", "year": 2024, "rating": 5},
+    {"id": "album-night-maps", "title": "Night Maps", "year": 2023, "rating": 4},
+    {"id": "album-low-orbit", "title": "Low Orbit", "year": 2025, "rating": 4}
+  ],
+  "tracks": [
+    {"id": "track-blue-transit", "title": "Blue Transit", "albumId": "album-signals-at-dawn", "durationSeconds": 286, "moods": ["focus", "energetic"]},
+    {"id": "track-glass-platform", "title": "Glass Platform", "albumId": "album-signals-at-dawn", "durationSeconds": 244, "moods": ["minimal", "calm"]},
+    {"id": "track-night-maps", "title": "Night Maps", "albumId": "album-night-maps", "durationSeconds": 391, "moods": ["ambient", "night"]},
+    {"id": "track-low-orbit", "title": "Low Orbit", "albumId": "album-low-orbit", "durationSeconds": 318, "moods": ["ambient", "focus"]},
+    {"id": "track-perigee", "title": "Perigee", "albumId": "album-low-orbit", "durationSeconds": 231, "moods": ["dance", "energetic"]},
+    {"id": "track-quiet-module", "title": "Quiet Module", "albumId": "album-low-orbit", "durationSeconds": 352, "moods": ["calm", "instrumental"]}
+  ],
+  "listeningHistory": [
+    {"trackId": "track-blue-transit", "playedAt": "2026-10-30T18:20:00Z"},
+    {"trackId": "track-night-maps", "playedAt": "2026-11-01T22:05:00Z"},
+    {"trackId": "track-perigee", "playedAt": "2026-11-03T08:15:00Z"}
+  ]
+}

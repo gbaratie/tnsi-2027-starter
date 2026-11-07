@@ -1,0 +1,8 @@
+[
+  {"subjectId": "artist-neon-harbor", "predicate": "CREATED", "objectId": "album-signals-at-dawn", "sourceId": "neon-harbor.md", "evidence": "Le duo a publié Signals at Dawn en 2024."},
+  {"subjectId": "artist-amina-sol", "predicate": "PERFORMED_ON", "objectId": "track-blue-transit", "sourceId": "neon-harbor.md", "evidence": "Blue Transit accueille la trompettiste Amina Sol."},
+  {"subjectId": "artist-kaito-vale", "predicate": "CREATED", "objectId": "album-low-orbit", "sourceId": "kaito-vale.md", "evidence": "Kaito Vale est le producteur de l'EP Low Orbit."},
+  {"subjectId": "artist-amina-sol", "predicate": "PERFORMED_ON", "objectId": "track-low-orbit", "sourceId": "kaito-vale.md", "evidence": "Low Orbit comporte une partie de trompette interprétée par Amina Sol."},
+  {"subjectId": "album-signals-at-dawn", "predicate": "CONTAINS", "objectId": "track-blue-transit", "sourceId": "library.json", "evidence": "Référence albumId du catalogue synthétique."},
+  {"subjectId": "album-low-orbit", "predicate": "CONTAINS", "objectId": "track-low-orbit", "sourceId": "library.json", "evidence": "Référence albumId du catalogue synthétique."}
+]

@@ -1,0 +1,15 @@
+# Données locales et secrets : ne jamais versionner
+data/
+.env
+.env.*
+!.env.example
+
+# Environnements et caches Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Système
+.DS_Store

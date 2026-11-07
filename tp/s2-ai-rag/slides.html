@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S2 — IA, ports et premier RAG</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* === THÈME DAUPHINE PSL / IBM === */
+    :root {
+      --bg-dark:#00205B; --bg-dark-alt:#001A4D; --bg-cream:#d0e2ff; --bg-cream-alt:#a6c8ff;
+      --ink-cream:#edf4ff; --ink-cream-2:rgba(237,244,255,.62); --ink-cream-3:rgba(237,244,255,.35);
+      --ink-dark:#00205B; --ink-dark-2:rgba(0,32,91,.68); --ink-dark-3:rgba(0,32,91,.38);
+      --accent:#4589ff; --accent-2:#0f62fe; --border-d:rgba(237,244,255,.14); --border-c:rgba(0,32,91,.16);
+      --pad-x:106px; --pad-y:59px; --stage-bg:#000814; --slide-bg:var(--bg-dark);
+      --display:'Bricolage Grotesque',sans-serif; --body:'DM Sans',sans-serif; --mono:'DM Mono',monospace;
+      --ease:cubic-bezier(.16,1,.3,1);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    /* ===========================================
+       FIXED 16:9 STAGE: MANDATORY BASE STYLES
+       Include this ENTIRE file in every presentation.
+       Slides are authored at 1920×1080 and scaled as a whole.
+       =========================================== */
+    html, body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--stage-bg,#000); }
+    .deck-viewport { position:fixed; inset:0; overflow:hidden; background:var(--stage-bg,#000); }
+    .deck-stage { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; transform-origin:0 0; background:var(--slide-bg,#fff); }
+    .slide { position:absolute; inset:0; width:1920px; height:1080px; overflow:hidden; display:block; visibility:hidden; opacity:0; pointer-events:none; background:var(--slide-bg,#fff); }
+    .slide.active, .slide.visible { visibility:visible; opacity:1; pointer-events:auto; z-index:1; }
+    img, video, canvas, svg { max-width:100%; max-height:100%; }
+    .deck-controls { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:1000; }
+    @media print {
+      html, body { width:1920px; height:auto; overflow:visible; background:#fff; }
+      .deck-viewport { position:static; overflow:visible; background:#fff; }
+      .deck-stage { position:static; width:auto; height:auto; transform:none!important; background:none; }
+      .slide { position:relative; display:block!important; visibility:visible!important; opacity:1!important; pointer-events:auto!important; width:1920px; height:1080px; break-after:page; page-break-after:always; }
+      .slide:last-child { break-after:auto; page-break-after:auto; }
+      .deck-controls { display:none!important; }
+    }
+    @media (prefers-reduced-motion:reduce) { *, *::before, *::after { animation-duration:.01ms!important; transition-duration:.2s!important; } }
+
+    /* === SURFACES ET ATMOSPHÈRE === */
+    .slide { color:var(--ink-cream); font-family:var(--body); }
+    .slide.s-dark::before { content:''; position:absolute; bottom:-120px; right:-120px; width:1100px; height:1000px; border-radius:50%; background:radial-gradient(ellipse at 70% 80%,rgba(15,98,254,.28) 0%,rgba(0,67,206,.12) 40%,transparent 70%); z-index:0; pointer-events:none; }
+    .slide.s-light { background:var(--bg-cream); color:var(--ink-dark); }
+    .slide-inner { position:relative; z-index:1; width:100%; height:100%; padding:var(--pad-y) var(--pad-x) 72px; display:flex; flex-direction:column; }
+    .grid-lines { position:absolute; inset:0; opacity:.22; background-image:linear-gradient(var(--border-d) 1px,transparent 1px),linear-gradient(90deg,var(--border-d) 1px,transparent 1px); background-size:96px 96px; mask-image:linear-gradient(to bottom,black,transparent 82%); }
+
+    /* === CHROME ET TYPOGRAPHIE === */
+    .chrome { display:flex; align-items:center; justify-content:space-between; font:500 20px var(--mono); letter-spacing:.13em; text-transform:uppercase; color:var(--ink-cream-2); padding-bottom:22px; border-bottom:1px solid var(--border-d); }
+    .s-light .chrome { color:var(--ink-dark-2); border-color:var(--border-c); }
+    .kicker { display:flex; align-items:center; gap:18px; color:var(--accent); font:500 22px var(--mono); letter-spacing:.12em; text-transform:uppercase; margin:54px 0 26px; }
+    .kicker::after { content:''; width:150px; height:1px; background:currentColor; }
+    h1, h2, h3 { font-family:var(--display); font-weight:700; line-height:.98; }
+    h1 { font-size:126px; max-width:1450px; letter-spacing:-.045em; }
+    h2 { font-size:78px; max-width:1500px; letter-spacing:-.035em; }
+    h3 { font-size:36px; line-height:1.08; }
+    .lead { margin-top:30px; max-width:1220px; color:var(--ink-cream-2); font-size:34px; line-height:1.45; }
+    .s-light .lead { color:var(--ink-dark-2); }
+    .footer { margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; color:var(--ink-cream-3); font:20px var(--mono); }
+    .s-light .footer { color:var(--ink-dark-3); }
+    code { font-family:var(--mono); }
+
+    /* === COMPOSANTS DE CONTENU === */
+    .two-col { display:grid; grid-template-columns:1.05fr .95fr; gap:54px; margin-top:48px; min-height:0; flex:1; }
+    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:28px; margin-top:46px; }
+    .card { min-height:230px; padding:34px; border:1px solid var(--border-d); background:rgba(0,26,77,.55); display:flex; flex-direction:column; gap:18px; }
+    .card .num { color:var(--accent); font:500 20px var(--mono); letter-spacing:.12em; }
+    .card p, .step p { color:var(--ink-cream-2); font-size:26px; line-height:1.4; }
+    .info-card { background:var(--bg-cream); color:var(--ink-dark); padding:44px; border-top:8px solid var(--accent-2); align-self:stretch; }
+    .info-card p, .info-card li { color:var(--ink-dark-2); font-size:27px; line-height:1.45; }
+    .info-card ul { margin:24px 0 0 28px; display:grid; gap:14px; }
+    .steps { display:grid; gap:18px; margin-top:42px; }
+    .step { display:grid; grid-template-columns:82px 1fr; gap:28px; align-items:start; padding:24px 28px; border-top:1px solid var(--border-d); }
+    .step-number { width:58px; height:58px; display:grid; place-items:center; background:var(--accent); color:var(--bg-dark); font:500 24px var(--mono); }
+    .step h3 { margin-bottom:8px; }
+    .command { background:#00153f; border-left:6px solid var(--accent); padding:26px 30px; font:24px/1.55 var(--mono); color:var(--ink-cream); white-space:pre-wrap; }
+    .flow { display:flex; align-items:center; justify-content:center; gap:18px; margin-top:74px; }
+    .flow-node { width:250px; min-height:150px; border:1px solid var(--border-d); background:rgba(0,26,77,.7); display:grid; place-items:center; text-align:center; padding:22px; font:600 27px var(--display); }
+    .flow-arrow { color:var(--accent); font:34px var(--mono); }
+    .checklist { display:grid; grid-template-columns:repeat(2,1fr); gap:20px 32px; margin-top:42px; }
+    .check { padding:24px 28px; border:1px solid var(--border-d); font-size:27px; line-height:1.35; }
+    .check::before { content:'✓'; color:var(--accent); font:500 24px var(--mono); margin-right:18px; }
+    .recap { display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-top:44px; }
+    .recap-box { padding:34px; background:rgba(237,244,255,.08); border:1px solid var(--border-d); }
+    .recap-box h3 { color:var(--bg-cream); margin-bottom:20px; }
+    .recap-box ul { list-style:none; display:grid; gap:13px; color:var(--ink-cream-2); font-size:25px; line-height:1.35; }
+    .recap-box li::before { content:'—'; color:var(--accent); margin-right:14px; font-family:var(--mono); }
+    .badge { display:inline-block; padding:9px 14px; background:var(--accent); color:var(--bg-dark); font:500 18px var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+
+    /* === ANIMATIONS === */
+    .reveal { opacity:0; transform:translateY(28px); transition:opacity .55s var(--ease),transform .55s var(--ease); }
+    .visible .reveal { opacity:1; transform:translateY(0); }
+    .visible .reveal:nth-child(2) { transition-delay:.08s; } .visible .reveal:nth-child(3) { transition-delay:.16s; }
+    .visible .reveal:nth-child(4) { transition-delay:.24s; } .visible .reveal:nth-child(5) { transition-delay:.32s; }
+
+    /* === CONTRÔLES ET ÉDITION === */
+    .deck-controls { display:flex; align-items:center; gap:14px; padding:9px 14px; background:rgba(0,10,35,.86); border:1px solid rgba(255,255,255,.18); color:#fff; font:16px var(--mono); backdrop-filter:blur(12px); }
+    .deck-controls button { width:34px; height:30px; border:0; background:transparent; color:#fff; cursor:pointer; font-size:20px; }
+    .progress-track { width:160px; height:3px; background:rgba(255,255,255,.2); }
+    .progress-bar { height:100%; width:0; background:var(--accent); transition:width .3s var(--ease); }
+    .edit-hotzone { position:fixed; top:0; left:0; width:80px; height:80px; z-index:10000; cursor:pointer; }
+    .edit-toggle { position:fixed; top:18px; left:18px; width:46px; height:46px; border:1px solid rgba(255,255,255,.28); background:#00153f; color:white; opacity:0; pointer-events:none; transition:opacity .3s; z-index:10001; cursor:pointer; }
+    .edit-toggle.show, .edit-toggle.active { opacity:1; pointer-events:auto; }
+    [contenteditable="true"] { outline:2px dashed var(--accent); outline-offset:5px; }
+  </style>
+</head>
+<body>
+  <div class="deck-viewport"><main class="deck-stage" id="deckStage">
+    <section class="slide s-dark active"><div class="grid-lines"></div><div class="slide-inner">
+      <div class="chrome"><span>TNSI · TP S2</span><span>01 / 09</span></div>
+      <div class="kicker reveal" data-editable>Mission de la séance</div>
+      <h1 class="reveal" data-editable>Brancher l’IA.<br>Garder le contrôle.</h1>
+      <p class="lead reveal" data-editable>Un LLM derrière un port, puis un premier RAG capable de citer ses preuves et de s’abstenir.</p>
+      <div class="footer"><span>Votre domaine · vos données</span><span>→ pour commencer</span></div>
+    </div></section>
+
+    <section class="slide s-light"><div class="slide-inner">
+      <div class="chrome"><span>S2 · résultat attendu</span><span>02 / 09</span></div>
+      <div class="kicker reveal" data-editable>La cible</div>
+      <h2 class="reveal" data-editable>À la fin, votre assistant sait répondre… ou dire qu’il ne sait pas.</h2>
+      <div class="cards reveal">
+        <div class="info-card"><span class="badge">LLM</span><h3 style="margin-top:22px" data-editable>Interchangeable</h3><p data-editable>Fake et fournisseur live respectent le même contrat.</p></div>
+        <div class="info-card"><span class="badge">RAG</span><h3 style="margin-top:22px" data-editable>Sourcé</h3><p data-editable>Chaque réponse montre le passage réellement récupéré.</p></div>
+        <div class="info-card"><span class="badge">Tests</span><h3 style="margin-top:22px" data-editable>Sans réseau</h3><p data-editable>Les scénarios automatiques restent déterministes.</p></div>
+      </div>
+      <div class="footer"><span>Critère clé : aucun fallback silencieux</span><span>Checkpoint 0</span></div>
+    </div></section>
+
+    <section class="slide s-dark"><div class="slide-inner">
+      <div class="chrome"><span>Étape 0 · préparer</span><span>03 / 09</span></div>
+      <div class="kicker reveal" data-editable>20 minutes maximum</div><h2 class="reveal" data-editable>Préparez un corpus petit, propre et explicable.</h2>
+      <div class="two-col">
+        <div class="steps reveal">
+          <div class="step"><span class="step-number">1</span><div><h3 data-editable>Choisir 3 à 8 documents</h3><p data-editable>Markdown ou texte, publics ou synthétiques, liés à votre domaine.</p></div></div>
+          <div class="step"><span class="step-number">2</span><div><h3 data-editable>Donner des IDs stables</h3><p data-editable>Une source doit rester identifiable après réindexation.</p></div></div>
+          <div class="step"><span class="step-number">3</span><div><h3 data-editable>Écrire 4 questions</h3><p data-editable>Deux répondables, une ambiguë et une hors corpus.</p></div></div>
+        </div>
+        <div class="info-card reveal"><h3 data-editable>Bloqué sur les données ?</h3><p style="margin-top:20px" data-editable>Utilisez temporairement <code>tp/fixtures/music-library/corpus/</code>. Ce jeu sert de secours, pas de sujet imposé.</p><div class="command" style="margin-top:34px;color:#edf4ff">uv sync --extra rag --group dev</div></div>
+      </div>
+      <div class="footer"><span>Ne jamais copier de données confidentielles</span><span>Checkpoint 1</span></div>
+    </div></section>
+
+    <section class="slide s-dark"><div class="slide-inner">
+      <div class="chrome"><span>Étape 1 · isoler le LLM</span><span>04 / 09</span></div>
+      <div class="kicker reveal" data-editable>Port d’abord</div><h2 class="reveal" data-editable>Le use case demande une capacité, pas une marque.</h2>
+      <div class="flow reveal">
+        <div class="flow-node" data-editable>Interface<br>Streamlit</div><div class="flow-arrow">→</div>
+        <div class="flow-node" data-editable>Use case<br>Chat</div><div class="flow-arrow">→</div>
+        <div class="flow-node" style="border-color:#4589ff" data-editable>TextGenerator<br>Port</div><div class="flow-arrow">→</div>
+        <div class="flow-node" data-editable>Fake / Cohere<br>/ Ollama</div>
+      </div>
+      <div class="checklist reveal">
+        <div class="check" data-editable>Définir une méthode unique et lisible.</div><div class="check" data-editable>Choisir le fournisseur dans le bootstrap.</div>
+        <div class="check" data-editable>Échouer clairement si la config est inconnue.</div><div class="check" data-editable>Tester le contrat avec le fake.</div>
+      </div>
+      <div class="footer"><span>Capsule C8 · DIP et ports</span><span>Checkpoint 2</span></div>
+    </div></section>
+
+    <section class="slide s-dark"><div class="slide-inner">
+      <div class="chrome"><span>Étape 2 · indexer</span><span>05 / 09</span></div>
+      <div class="kicker reveal" data-editable>Use case Ingest</div><h2 class="reveal" data-editable>Transformez les documents en preuves recherchables.</h2>
+      <div class="flow reveal">
+        <div class="flow-node" data-editable>Documents<br><small>id + version</small></div><div class="flow-arrow">→</div>
+        <div class="flow-node" data-editable>Chunks<br><small>texte borné</small></div><div class="flow-arrow">→</div>
+        <div class="flow-node" data-editable>Embeddings<br><small>même modèle</small></div><div class="flow-arrow">→</div>
+        <div class="flow-node" data-editable>Vector store<br><small>upsert</small></div>
+      </div>
+      <div class="cards reveal">
+        <div class="card"><span class="num">01</span><h3 data-editable>Idempotence</h3><p data-editable>Réindexer la même version ne crée pas de doublon.</p></div>
+        <div class="card"><span class="num">02</span><h3 data-editable>Traçabilité</h3><p data-editable>Chaque chunk garde son document, sa position et sa version.</p></div>
+        <div class="card"><span class="num">03</span><h3 data-editable>Compatibilité</h3><p data-editable>Un changement de modèle exige une réindexation explicite.</p></div>
+      </div>
+      <div class="footer"><span>Projection reconstructible</span><span>Checkpoint 3</span></div>
+    </div></section>
+
+    <section class="slide s-dark"><div class="slide-inner">
+      <div class="chrome"><span>Étape 3 · répondre</span><span>06 / 09</span></div>
+      <div class="kicker reveal" data-editable>Use case AskWithRag</div><h2 class="reveal" data-editable>Recherchez d’abord. Générez ensuite.</h2>
+      <div class="two-col">
+        <div class="steps reveal">
+          <div class="step"><span class="step-number">1</span><div><h3 data-editable>Valider la question</h3><p data-editable>Taille, vide, caractères et contexte autorisé.</p></div></div>
+          <div class="step"><span class="step-number">2</span><div><h3 data-editable>Récupérer 1 à 3 passages</h3><p data-editable>Seuil minimal et nombre de sources bornés.</p></div></div>
+          <div class="step"><span class="step-number">3</span><div><h3 data-editable>Construire le prompt</h3><p data-editable>Question + passages numérotés + consigne de citation.</p></div></div>
+        </div>
+        <div class="info-card reveal"><h3 data-editable>La règle d’abstention</h3><p style="margin-top:20px" data-editable>Si aucun passage ne dépasse le seuil, ne pas appeler le LLM. Retourner une réponse explicite avec zéro source.</p><p style="margin-top:26px;font-family:var(--mono)" data-editable>« Je ne dispose pas de preuve suffisante dans le corpus. »</p></div>
+      </div>
+      <div class="footer"><span>Le modèle ne fabrique pas la preuve</span><span>Checkpoint 4</span></div>
+    </div></section>
+
+    <section class="slide s-dark"><div class="slide-inner">
+      <div class="chrome"><span>Étape 4 · nettoyer</span><span>07 / 09</span></div>
+      <div class="kicker reveal" data-editable>Capsule C4 · SRP</div><h2 class="reveal" data-editable>Une fonction pure pour la salutation. Rien de plus.</h2>
+      <div class="two-col">
+        <div class="info-card reveal"><h3 data-editable>À extraire</h3><p style="margin-top:20px" data-editable><code>build_greeting(name, language)</code> construit le texte. Streamlit lit les champs et affiche le résultat.</p><ul><li data-editable>aucun import Streamlit dans la fonction ;</li><li data-editable>langues supportées testées ;</li><li data-editable>entrée invalide explicite.</li></ul></div>
+        <div class="reveal"><div class="command">uv run pytest
+uv run ruff check .</div><div class="checklist" style="grid-template-columns:1fr;margin-top:28px"><div class="check" data-editable>Fake et live ont le même contrat.</div><div class="check" data-editable>Aucun test n’appelle le réseau.</div><div class="check" data-editable>La salutation est testée directement.</div></div></div>
+      </div>
+      <div class="footer"><span>Petit exercice, responsabilité visible</span><span>Checkpoint 5</span></div>
+    </div></section>
+
+    <section class="slide s-light"><div class="slide-inner">
+      <div class="chrome"><span>Démo de fin</span><span>08 / 09</span></div>
+      <div class="kicker reveal" data-editable>Montrez, ne racontez pas</div><h2 class="reveal" data-editable>Votre démonstration tient en quatre questions.</h2>
+      <div class="cards reveal">
+        <div class="info-card"><span class="badge">01</span><h3 style="margin-top:22px" data-editable>Réponse directe</h3><p data-editable>Une information présente dans un seul document.</p></div>
+        <div class="info-card"><span class="badge">02</span><h3 style="margin-top:22px" data-editable>Deux sources</h3><p data-editable>Une réponse qui oblige à montrer deux passages.</p></div>
+        <div class="info-card"><span class="badge">03–04</span><h3 style="margin-top:22px" data-editable>Limite</h3><p data-editable>Une question ambiguë puis une question hors corpus.</p></div>
+      </div>
+      <div class="command reveal" style="margin-top:42px">git add .
+git commit -m "Ajoute le LLM derrière un port et le premier RAG"</div>
+      <div class="footer"><span>Capturer les limites observées dans le README</span><span>Jalon S2</span></div>
+    </div></section>
+
+    <section class="slide s-dark"><div class="slide-inner">
+      <div class="chrome"><span>Récapitulatif</span><span>09 / 09</span></div>
+      <div class="kicker reveal" data-editable>Avant de quitter S2</div><h2 class="reveal" data-editable>Votre système est remplaçable, sourcé et testable.</h2>
+      <div class="recap reveal">
+        <div class="recap-box"><h3 data-editable>Vous avez construit</h3><ul><li data-editable>un port LLM et plusieurs adaptateurs ;</li><li data-editable>une ingestion idempotente ;</li><li data-editable>un RAG avec citations ;</li><li data-editable>une abstention explicite.</li></ul></div>
+        <div class="recap-box"><h3 data-editable>À conserver pour S3</h3><ul><li data-editable>le fake pour les tests ;</li><li data-editable>les quatre questions de référence ;</li><li data-editable>les IDs et versions du corpus ;</li><li data-editable>les erreurs de configuration visibles.</li></ul></div>
+      </div>
+      <div class="command reveal" style="margin-top:32px">uv run pytest  &&  uv run ruff check .</div>
+      <div class="footer"><span>Prochaine étape : tools, agent borné et MCP</span><span>Fin du TP</span></div>
+    </div></section>
+  </main></div>
+
+  <nav class="deck-controls" aria-label="Navigation"><button id="prev" aria-label="Précédent">←</button><span id="counter">1 / 9</span><div class="progress-track"><div class="progress-bar" id="progress"></div></div><button id="next" aria-label="Suivant">→</button></nav>
+  <div class="edit-hotzone" title="Mode édition"></div><button class="edit-toggle" id="editToggle" title="Mode édition (E)">✎</button>
+  <script>
+    /* === CONTRÔLEUR DE PRÉSENTATION === */
+    class SlidePresentation {
+      constructor(){this.slides=[...document.querySelectorAll('.slide')];this.index=0;this.stage=document.getElementById('deckStage');this.touchStart=0;this.wheelLock=false;this.scale();this.bind();this.show(0);}
+      scale(){const apply=()=>{const f=Math.min(innerWidth/1920,innerHeight/1080);const x=(innerWidth-1920*f)/2;const y=(innerHeight-1080*f)/2;this.stage.style.transform=`translate(${x}px, ${y}px) scale(${f})`;};apply();addEventListener('resize',apply);}
+      bind(){document.getElementById('prev').onclick=()=>this.show(this.index-1);document.getElementById('next').onclick=()=>this.show(this.index+1);addEventListener('keydown',e=>{if(e.target.isContentEditable)return;if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();this.show(this.index+1);}if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();this.show(this.index-1);}if(e.key==='Home')this.show(0);if(e.key==='End')this.show(this.slides.length-1);});addEventListener('wheel',e=>{if(this.wheelLock)return;this.wheelLock=true;this.show(this.index+(e.deltaY>0?1:-1));setTimeout(()=>this.wheelLock=false,500);},{passive:true});addEventListener('touchstart',e=>this.touchStart=e.changedTouches[0].screenX,{passive:true});addEventListener('touchend',e=>{const d=e.changedTouches[0].screenX-this.touchStart;if(Math.abs(d)>60)this.show(this.index+(d<0?1:-1));},{passive:true});}
+      show(i){this.index=Math.max(0,Math.min(i,this.slides.length-1));this.slides.forEach((s,n)=>{s.classList.toggle('active',n===this.index);s.classList.toggle('visible',n===this.index);});document.getElementById('counter').textContent=`${this.index+1} / ${this.slides.length}`;document.getElementById('progress').style.width=`${(this.index+1)/this.slides.length*100}%`;}
+    }
+    /* === ÉDITION LOCALE ET EXPORT === */
+    class DeckEditor {
+      constructor(){this.active=false;this.items=[...document.querySelectorAll('[data-editable]')];this.items.forEach((el,i)=>{const saved=localStorage.getItem(`s2-rag-${i}`);if(saved)el.innerHTML=saved;el.addEventListener('input',()=>localStorage.setItem(`s2-rag-${i}`,el.innerHTML));});}
+      toggle(){this.active=!this.active;this.items.forEach(el=>el.contentEditable=this.active);document.getElementById('editToggle').classList.toggle('active',this.active);}
+      save(){const blob=new Blob([document.documentElement.outerHTML],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='s2-ai-rag-slides.html';a.click();URL.revokeObjectURL(a.href);}
+    }
+    const deck=new SlidePresentation();const editor=new DeckEditor();const hotzone=document.querySelector('.edit-hotzone');const editToggle=document.getElementById('editToggle');let hideTimer;
+    const showEdit=()=>{clearTimeout(hideTimer);editToggle.classList.add('show');};const hideEdit=()=>{hideTimer=setTimeout(()=>{if(!editor.active)editToggle.classList.remove('show');},400);};
+    hotzone.addEventListener('mouseenter',showEdit);hotzone.addEventListener('mouseleave',hideEdit);hotzone.addEventListener('click',()=>editor.toggle());editToggle.addEventListener('mouseenter',showEdit);editToggle.addEventListener('mouseleave',hideEdit);editToggle.addEventListener('click',()=>editor.toggle());
+    addEventListener('keydown',e=>{if((e.key==='e'||e.key==='E')&&!e.target.isContentEditable)editor.toggle();if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();editor.save();}});
+  </script>
+</body>
+</html>
