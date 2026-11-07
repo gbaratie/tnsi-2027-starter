@@ -68,7 +68,7 @@ uv sync --extra all       # poste enseignant ou rattrapage complet
    - **le problème métier** et les **utilisateurs cibles** ;
    - **les KPIs** (`st.metric`) ;
    - **le vocabulaire métier** et les **sources de données** ;
-   - **au moins trois questions types**, dont une de chaque type (voir `docs/12_USE_CASES.md` du dépôt enseignant ou la consigne de séance).
+   - **au moins trois questions types**, dont une de chaque type (voir `course-authoring/docs/12_USE_CASES.md` du dépôt enseignant ou la consigne de séance).
 3. Consultez **💡 Guide Streamlit** (`pages/2_guide_streamlit.py`) pour les composants disponibles.
 4. Testez **💬 Interface de Chat** (`pages/3_chat.py`) : la réponse est **simulée**, aucun modèle n'est appelé.
 
