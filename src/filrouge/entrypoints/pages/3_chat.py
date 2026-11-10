@@ -3,7 +3,8 @@
 import streamlit as st
 
 from filrouge.bootstrap import create_application
-from filrouge.domain.exceptions import ValidationError
+from filrouge.config import AppConfig
+from filrouge.domain.exceptions import DomainError
 
 
 def get_app():
@@ -12,15 +13,18 @@ def get_app():
     return st.session_state["app_container"]
 
 
-app = get_app()
+try:
+    app = get_app()
+except DomainError as error:
+    st.error(error.message)
+    st.stop()
 
 st.header("💬 Interface de Chat — Assistant Métier")
 
-st.info(
-    "🏷️ **Simulation locale — aucun modèle externe appelé.**\n\n"
-    "Ce simulateur valide la circulation des messages à travers l'architecture sans nécessiter de clé API ni de réseau. "
-    "Les modèles réels (Cohere, Ollama) seront branchés à partir de la Séance 2."
-)
+if AppConfig.LLM_PROVIDER == "fake":
+    st.info("🏷️ **Simulation locale — aucun modèle externe appelé.** Google ADK utilise un modèle déterministe local.")
+else:
+    st.info(f"Google ADK · fournisseur réel : **{AppConfig.LLM_PROVIDER}**. Les erreurs restent visibles.")
 
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
@@ -57,7 +61,7 @@ if user_input:
         reply = app.chat_with_simulation.execute(user_input)
         st.session_state["chat_history"].append(("assistant", reply.text, reply.is_simulation))
         with st.chat_message("assistant"):
-            st.caption("⚙️ Réponse simulée")
+            st.caption("⚙️ Réponse simulée" if reply.is_simulation else f"Modèle : {reply.model_name}")
             st.markdown(reply.text)
-    except ValidationError as e:
+    except DomainError as e:
         st.error(f"❌ {e.message}")

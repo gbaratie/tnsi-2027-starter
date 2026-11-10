@@ -23,6 +23,14 @@ class ConfigurationError(DomainError):
         self.message = message
 
 
+class GenerationError(DomainError):
+    """Erreur explicite de génération, sans bascule automatique en simulation."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
 class StorageError(DomainError):
     """Erreur levée lors de l'accès ou la persistance des données."""
 

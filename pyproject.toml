@@ -11,6 +11,8 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "streamlit>=1.40.0",
     "python-dotenv>=1.0.1",
+    "google-adk==2.14.0",
+    "litellm>=1.84,<1.106.3",
 ]
 
 [project.optional-dependencies]
@@ -43,3 +45,6 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 120
 src = ["src", "tests"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["filrouge"]

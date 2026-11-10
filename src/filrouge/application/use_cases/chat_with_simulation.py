@@ -20,5 +20,7 @@ class ChatWithSimulation:
                 message="Le message utilisateur ne peut pas être vide.",
                 fields={"message": "Veuillez saisir une question ou un message."},
             )
+        if len(cleaned_message) > 4000:
+            raise ValidationError("Le message est limité à 4 000 caractères.", {"message": "Message trop long."})
 
         return self._text_generator.generate_reply(cleaned_message)

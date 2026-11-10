@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>S2 — IA, ports et premier RAG</title>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
   <style>
     /* === THÈME DAUPHINE PSL / IBM === */
     :root {
@@ -105,8 +105,15 @@
     .edit-toggle.show, .edit-toggle.active { opacity:1; pointer-events:auto; }
     [contenteditable="true"] { outline:2px dashed var(--accent); outline-offset:5px; }
   </style>
+<style>
+/* === ADK : FINITION CLOUD, FONTES LOCALES ET PLANCHES DE TP === */
+@font-face{font-family:'IBM Plex Sans';src:url('../assets/fonts/plex/IBMPlexSans-Regular-Latin.woff2')}@font-face{font-family:'IBM Plex Sans';font-weight:600;src:url('../assets/fonts/plex/IBMPlexSans-SemiBold-Latin.woff2')}@font-face{font-family:'IBM Plex Mono';src:url('../assets/fonts/plex/IBMPlexMono-Regular-Latin.woff2')}
+:root{--display:'IBM Plex Sans',sans-serif;--body:'IBM Plex Sans',sans-serif;--mono:'IBM Plex Mono',monospace;--stage-bg:#001A4D;--ink-cream-2:#c6d5ed;--ink-cream-3:#a6c8ff;--ink-dark-2:#294265;--ink-dark-3:#375675}
+.slide.s-dark::before,.grid-lines{display:none}.slide h1{font-size:108px;line-height:1.06;letter-spacing:-3px}.slide h2{font-size:70px;line-height:1.08;letter-spacing:-1.7px}.slide h3{font-size:34px;line-height:1.15}.slide .kicker{margin-top:35px;margin-bottom:22px;color:#a6c8ff}.s-light .kicker{color:#0043ce}.slide .lead{font-size:32px;line-height:1.45}.s-light .info-card{background:#edf4ff;border:1px solid #4589ff}.slide .info-card,.slide .card{border-radius:3px;box-shadow:none}.slide .badge{background:#a6c8ff;color:#00205B}.s-light .badge{background:#0043ce;color:#edf4ff}.command{white-space:pre-wrap;overflow-wrap:anywhere}.adk-body{flex:1;min-height:0;margin-top:34px;display:flex;flex-direction:column;gap:24px}.adk-columns{display:grid;grid-template-columns:1.1fr 1fr;gap:46px;align-items:start}.adk-code{padding:30px;background:#001A4D;color:#edf4ff;border-left:6px solid #4589ff;font:26px/1.6 var(--mono);white-space:pre-wrap}.adk-note{font-size:27px;line-height:1.45;color:#294265}.s-dark .adk-note{color:#c6d5ed}.adk-list{display:grid;gap:24px;list-style:none}.adk-list li{font-size:30px;line-height:1.4;padding:0 0 20px;border-bottom:1px solid #4589ff}.adk-list b{font-weight:600;color:#0043ce}.s-dark .adk-list b{color:#a6c8ff}.adk-diagram{width:100%;height:550px;object-fit:contain}.adk-screen{width:100%;height:530px;object-fit:contain;object-position:top left;border:1px solid #4589ff;background:#131314}.adk-table{border-collapse:collapse;width:100%;font-size:29px}.adk-table td,.adk-table th{padding:24px 28px;text-align:left;border-bottom:1px solid #4589ff;line-height:1.35}.adk-table th{color:#0043ce;background:#edf4ff;font-weight:600}.adk-table td:first-child{font-family:var(--mono);font-size:25px}.adk-trace{display:grid;grid-template-columns:95px 1fr 1.1fr;gap:0;font-size:29px;line-height:1.4}.adk-trace>*{padding:24px;border-bottom:1px solid #4589ff}.adk-trace .n{font:32px var(--mono);color:#0043ce}.adk-metric{font:600 100px var(--display);color:#0043ce}.adk-cover{position:absolute;right:90px;top:290px;width:690px;height:510px;object-fit:cover;object-position:top left;border:1px solid #4589ff}.slide:first-child h1,.slide:first-child .lead{max-width:980px}.slide .footer{font-size:20px;margin-top:auto;padding-top:22px}.slide .chrome{font-size:19px}.slide .flow{margin-top:44px}.slide .flow-node{min-height:132px}.slide .recap-box h3{color:#edf4ff}
+@media print{.reveal,.fragment{opacity:1!important;transform:none!important;filter:none!important}.adk-screen{print-color-adjust:exact}*{box-shadow:none!important}.slide{break-inside:avoid}}
+</style>
 <!-- deck-review:start -->
-<script type="application/json" id="review-config">{"deckId": "tp-s2-ai-rag", "sourcePath": "starter/tp/s2-ai-rag/slides.html", "sourceHash": "sha256:d62249ed5fb3efb937663840910ee5789558653a5796fac6f9074bcd418cf296"}</script>
+<script type="application/json" id="review-config">{"deckId": "tp-s2-ai-rag", "sourcePath": "starter/tp/s2-ai-rag/slides.html", "sourceHash": "sha256:5f015f5f570af197c20d9034740039b22338d5ad5ed915f4954026a813e01610"}</script>
 <script>
 /* Shared static deck review editor. Embedded by build.py; no network calls. */
 (() => {
@@ -144,22 +151,32 @@
     if (!field(event.target) && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'e') {
       event.preventDefault(); event.stopImmediatePropagation(); api.toggle(); return;
     }
-    if (field(event.target)) event.stopImmediatePropagation();
+    if (field(event.target) || event.target.closest?.('#review-panel')) event.stopImmediatePropagation();
     if (event.key === 'Escape' && api.active) { api.toggle(false); event.stopImmediatePropagation(); }
   }, true);
-  for (const type of ['wheel', 'touchstart', 'touchend']) window.addEventListener(type, event => {
-    if (field(event.target) || event.target.closest?.('#review-panel')) event.stopImmediatePropagation();
+  for (const type of ['wheel', 'touchstart', 'touchmove', 'touchend']) window.addEventListener(type, event => {
+    if (field(event.target) || event.target.closest?.('#review-panel,#review-toggle')) event.stopImmediatePropagation();
   }, {capture:true, passive:true});
 
   document.addEventListener('DOMContentLoaded', () => {
     const config = JSON.parse(document.getElementById('review-config').textContent);
     const slides = [...document.querySelectorAll('.slide')];
     if (!slides.length) return;
+    // The courses and practicals use two controller APIs. Keep their navigation
+    // arrays in sync with the DOM, including after leaving review mode.
+    const presentation = [window.deckPresentation, window.deck, typeof deck !== 'undefined' ? deck : null]
+      .find(candidate => Array.isArray(candidate?.slides));
+    const originalOrder = slides.map(slide => slide.dataset.reviewSlide);
     const key = `deck-review-v1:${config.deckId}:${config.sourceHash}`;
     const startedAt = new Date().toISOString();
     let active = false, storageError = false, draft = {comments:{}, changes:{}, instruction:'', startedAt};
     try { const saved = JSON.parse(localStorage.getItem(key)); if (saved) draft = saved; }
     catch { storageError = true; }
+    draft.comments ||= {}; draft.changes ||= {}; draft.instruction ||= '';
+    if (!Array.isArray(draft.slideOrder) || draft.slideOrder.length !== slides.length ||
+        new Set(draft.slideOrder).size !== slides.length || draft.slideOrder.some(id => !originalOrder.includes(id))) {
+      draft.slideOrder = [...originalOrder];
+    }
     const blocks = [];
     const selector = 'h1,h2,h3,h4,p,li,pre,td,th,span,strong,code,small,div';
     slides.forEach(slide => {
@@ -174,29 +191,52 @@
         const saved = draft.changes[block.id];
         // Restore text and source formatting without executing markup from storage.
         if (saved) restoreText(el, saved);
-        el.addEventListener('input', () => {
-          if (textOf(el) === block.beforeText) delete draft.changes[block.id];
-          else draft.changes[block.id] = {blockId:block.id, slideId:block.slideId,
-            beforeHtml:block.beforeHtml, beforeText:block.beforeText, afterText:textOf(el), afterHtml:el.innerHTML};
-          persist(); renderSummary();
-        });
+        el.addEventListener('input', () => { saveBlock(block); syncTextEditor(); });
       });
     });
     const style = document.createElement('style');
     style.textContent = `
       .edit-toggle,.edit-hotzone{display:none!important}
       #review-toggle,#review-panel{font:14px/1.5 system-ui,sans-serif;color:#17263b;z-index:100100;position:fixed;box-sizing:border-box}
-      #review-toggle{top:12px;right:12px;background:#fff;border:1px solid #ccd5e1;border-radius:8px;padding:9px 14px;cursor:pointer;box-shadow:0 3px 16px #0002}
-      #review-panel{top:62px;right:12px;width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 80px);overflow:auto;background:#fff;padding:20px;border:1px solid #ccd5e1;border-radius:12px;box-shadow:0 8px 36px #0003;text-align:left}
+      #review-toggle{top:max(8px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));min-height:44px;background:#fff;border:1px solid #ccd5e1;border-radius:8px;padding:9px 14px;cursor:pointer;box-shadow:0 3px 16px #0002}
+      #review-panel{top:62px;right:12px;width:min(380px,calc(100vw - 24px));max-height:calc(var(--review-viewport-height,100dvh) - 74px);display:flex;flex-direction:column;background:#fff;border:1px solid #ccd5e1;border-radius:12px;box-shadow:0 8px 36px #0003;text-align:left;overflow:hidden}
       #review-panel[hidden]{display:none} #review-panel *{box-sizing:border-box;letter-spacing:normal;text-transform:none}
-      #review-panel h2{font:600 19px system-ui;margin:0 0 12px;color:#17263b}
+      #review-panel h2{font:600 19px system-ui;margin:0;color:#17263b}
+      #review-header,#review-actions{display:block;margin:0;padding:12px 16px;flex-shrink:0;background:#fff;font:inherit;color:inherit}
+      #review-header{border-bottom:1px solid #dce3ed} #review-actions{border-top:1px solid #dce3ed}
+      #review-heading,.review-row{display:flex;align-items:center;gap:8px}
+      #review-heading{justify-content:space-between} .review-row>*{flex:1;min-width:0}
+      #review-content{padding:0 16px 12px;overflow:auto;overscroll-behavior:contain;min-height:0;touch-action:pan-y}
+      #review-navigation{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
+      #review-navigation button{min-width:44px} #review-page{font-variant-numeric:tabular-nums}
       #review-panel label{display:block;margin-top:14px;font-weight:600}
-      #review-panel textarea,#review-panel select{font:14px/1.5 system-ui;width:100%;margin:6px 0;padding:8px;border:1px solid #bcc9d9;border-radius:6px;color:#17263b;background:white}
-      #review-panel textarea{min-height:90px;resize:vertical} #review-panel button{font:14px system-ui;padding:9px;border:1px solid #bcc9d9;border-radius:6px;cursor:pointer;background:#edf3fa;color:#17263b;margin:5px 0}
+      #review-panel textarea,#review-panel select{font:16px/1.5 system-ui;width:100%;min-height:44px;margin:6px 0;padding:8px;border:1px solid #bcc9d9;border-radius:6px;color:#17263b;background:white}
+      #review-panel textarea{min-height:90px;resize:vertical} #review-panel button{font:14px system-ui;min-height:44px;padding:9px;border:1px solid #bcc9d9;border-radius:6px;cursor:pointer;background:#edf3fa;color:#17263b;margin:0}
+      #review-panel button:disabled{opacity:.45;cursor:default}
+      #review-panel :focus-visible,#review-toggle:focus-visible{outline:3px solid #3478e5;outline-offset:2px}
       #review-panel .primary{width:100%;background:#174ec0;color:white;border-color:#174ec0}
       #review-panel p,#review-panel summary{font:13px/1.5 system-ui;color:#526278;margin:10px 0}
+      #review-panel summary{cursor:pointer;min-height:44px;padding:10px 0}
+      #review-actions p{margin:6px 0 0;font-size:12px}
       #review-list{padding-left:20px;font:13px/1.5 system-ui} #review-list button{text-align:left}
       body.reviewing [contenteditable=true]{outline:2px dashed #3478e5;outline-offset:3px;cursor:text}
+      @media screen and (max-width:760px){
+        body.reviewing .deck-viewport{top:56px;height:var(--review-preview-height);bottom:auto}
+        body.reviewing #deckStage{transform:var(--review-transform)!important}
+        body.reviewing .deck-controls,body.reviewing .hud,body.reviewing .hud-controls,body.reviewing .progress-track{visibility:hidden}
+        #review-panel{top:calc(56px + var(--review-preview-height));left:0;right:0;width:100%;height:calc(var(--review-viewport-height) - 56px - var(--review-preview-height));max-height:none;border-radius:14px 14px 0 0}
+        #review-actions{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+        #review-actions p{display:none}
+        body.reviewing.review-compact #review-header{display:flex;align-items:center;gap:8px;padding:8px 16px}
+        body.reviewing.review-compact #review-heading{order:2}
+        body.reviewing.review-compact #review-heading h2{display:none}
+        body.reviewing.review-compact #review-navigation{flex:1;margin:0}
+      }
+      @media screen and (min-width:761px) and (max-height:500px) and (pointer:coarse){
+        body.reviewing .deck-viewport{top:56px;width:calc(100% - 404px);height:calc(var(--review-viewport-height) - 56px);bottom:auto}
+        body.reviewing #deckStage{transform:var(--review-transform)!important}
+        body.reviewing .deck-controls,body.reviewing .hud,body.reviewing .hud-controls,body.reviewing .progress-track{visibility:hidden}
+      }
       @media print{#review-panel,#review-toggle{display:none!important}}
     `;
     document.head.append(style);
@@ -204,24 +244,110 @@
     toggle.setAttribute('aria-expanded','false'); toggle.setAttribute('aria-controls','review-panel'); document.body.append(toggle);
     const panel = document.createElement('aside'); panel.id = 'review-panel'; panel.hidden = true;
     panel.setAttribute('aria-label','Révision du deck');
-    panel.innerHTML = `<h2>Révision du deck</h2><p>Corrigez les textes dans les slides et laissez vos consignes ici.</p>
-      <label for="review-slide">Slide à commenter</label><select id="review-slide"></select>
+    panel.innerHTML = `<header id="review-header"><div id="review-heading"><h2>Révision du deck</h2><button id="review-close">Fermer</button></div>
+      <nav id="review-navigation" aria-label="Parcourir les slides"><button id="review-prev" aria-label="Slide précédente">←</button><span id="review-page" aria-live="polite"></span><button id="review-next" aria-label="Slide suivante">→</button></nav></header>
+      <div id="review-content"><label for="review-slide">Slide à réviser</label><select id="review-slide"></select>
+      <details id="review-order"><summary>Modifier l’ordre des slides</summary>
+        <div class="review-row"><button id="review-up">↑ Monter</button><button id="review-down">↓ Descendre</button></div>
+        <label for="review-position">Placer à la position</label><select id="review-position"></select>
+        <button id="review-reset-order">Rétablir l’ordre d’origine</button>
+      </details>
+      <details id="review-text-editor"><summary>Corriger un texte</summary>
+        <label for="review-block">Texte de la slide</label><select id="review-block"></select>
+        <label for="review-text">Texte corrigé</label><textarea id="review-text"></textarea>
+        <p>La correction apparaît aussi dans la slide.</p>
+      </details>
       <label for="review-comment">Commentaire pour cette slide</label><textarea id="review-comment" placeholder="Ex. : alléger cette slide, ajouter un exemple…"></textarea>
       <label for="review-instruction">Consigne générale</label><textarea id="review-instruction" placeholder="Ex. : conserver le style et simplifier les explications."></textarea>
       <p id="review-status" role="status"></p><details><summary id="review-summary"></summary><ul id="review-list"></ul></details>
-      <button class="primary" id="review-export">Exporter la révision JSON</button>
-      <p>Joignez ce fichier à votre conversation avec l’agent pour retravailler le deck. Le dépôt sera modifié par l’agent.</p>
-      <button id="review-close">Quitter l’édition</button>`;
+      </div><footer id="review-actions"><button class="primary" id="review-export">Exporter la révision JSON</button>
+      <p>Joignez ce fichier à votre conversation avec l’agent pour retravailler le deck.</p></footer>`;
     document.body.append(panel);
     const $ = id => document.getElementById(id);
     const select = $('review-slide'), comment = $('review-comment'), instruction = $('review-instruction');
-    slides.forEach((slide, index) => {
-      const option = document.createElement('option'); option.value = slide.dataset.reviewSlide;
-      option.textContent = `${index+1}. ${(slide.querySelector('h1,h2,h3')?.textContent || 'Slide').trim().slice(0,90)}`; select.append(option);
-    });
+    const blockSelect = $('review-block'), textEditor = $('review-text');
+    const orderedSlides = () => draft.slideOrder.map(id => slides.find(slide => slide.dataset.reviewSlide === id));
+    const orderChanged = () => draft.slideOrder.some((id,index) => id !== originalOrder[index]);
+    slides.forEach((_, index) => $('review-position').add(new Option(String(index+1),String(index))));
     function current() { return slides.find(slide => slide.classList.contains('active')) || slides[0]; }
-    function loadComment() { comment.value = draft.comments[select.value] || ''; }
-    select.value = current().dataset.reviewSlide; loadComment(); instruction.value = draft.instruction;
+    function renderSlideOptions(id) {
+      select.replaceChildren();
+      orderedSlides().forEach((slide,index) => select.add(new Option(
+        `${index+1}. ${(slide.querySelector('h1,h2,h3')?.textContent || 'Slide').trim().slice(0,90)}`,slide.dataset.reviewSlide)));
+      select.value = id;
+    }
+    function syncTextEditor() {
+      const block = blocks.find(block => block.id === blockSelect.value);
+      if (document.activeElement !== textEditor) textEditor.value = block ? textOf(block.el) : '';
+    }
+    function loadSlide() {
+      comment.value = draft.comments[select.value] || '';
+      const previous = blockSelect.value;
+      blockSelect.replaceChildren();
+      blocks.filter(block => block.slideId === select.value).forEach(block =>
+        blockSelect.add(new Option(textOf(block.el).trim().slice(0,90),block.id)));
+      if ([...blockSelect.options].some(option => option.value === previous)) blockSelect.value = previous;
+      textEditor.disabled = blockSelect.disabled = !blockSelect.options.length;
+      syncTextEditor();
+      const index = draft.slideOrder.indexOf(select.value);
+      $('review-page').textContent = `${index+1} / ${slides.length}`;
+      $('review-position').value = String(index);
+      $('review-prev').disabled = $('review-up').disabled = index === 0;
+      $('review-next').disabled = $('review-down').disabled = index === slides.length-1;
+      $('review-reset-order').disabled = !orderChanged();
+    }
+    function showSlide(id) {
+      const index = draft.slideOrder.indexOf(id);
+      if (index < 0) return;
+      if (presentation?.showSlide) presentation.showSlide(index,true);
+      else if (presentation?.show) presentation.show(index);
+      else slides.forEach(slide => {
+        const visible = slide.dataset.reviewSlide === id;
+        slide.classList.toggle('active',visible); slide.classList.toggle('visible',visible);
+        slide.inert = !visible; slide.setAttribute('aria-hidden',String(!visible));
+      });
+      select.value = id; loadSlide();
+    }
+    function applyOrder(id) {
+      const ordered = orderedSlides();
+      ordered.forEach((slide,index) => {
+        slide.parentElement.append(slide);
+        slide.querySelectorAll('.slide-number').forEach(el => { el.textContent = `${String(index+1).padStart(2,'0')} / ${slides.length}`; });
+      });
+      if (presentation) presentation.slides = ordered;
+      renderSlideOptions(id); showSlide(id);
+    }
+    function moveSlide(position) {
+      const id = select.value, from = draft.slideOrder.indexOf(id);
+      if (position < 0 || position >= slides.length || position === from) return;
+      draft.slideOrder.splice(from,1); draft.slideOrder.splice(position,0,id);
+      applyOrder(id); persist(); renderSummary();
+    }
+    function saveBlock(block) {
+      if (textOf(block.el) === block.beforeText) delete draft.changes[block.id];
+      else draft.changes[block.id] = {blockId:block.id, slideId:block.slideId,
+        beforeHtml:block.beforeHtml, beforeText:block.beforeText, afterText:textOf(block.el), afterHtml:block.el.innerHTML};
+      persist(); renderSummary();
+    }
+    // A numeric URL hash denotes a position in the locally reordered deck.
+    const initialId = draft.slideOrder[slides.indexOf(current())];
+    if (orderChanged()) applyOrder(initialId);
+    else { renderSlideOptions(initialId); loadSlide(); }
+    instruction.value = draft.instruction;
+    function layoutReview() {
+      const height = window.visualViewport?.height || innerHeight;
+      const landscape = matchMedia('(min-width:761px) and (max-height:500px) and (pointer:coarse)').matches;
+      const compact = innerWidth <= 760 && height < 420;
+      document.body.classList.toggle('review-compact',compact);
+      const width = landscape ? innerWidth-404 : innerWidth;
+      const previewHeight = compact ? 0 : landscape ? height-56 : Math.min(width*9/16,height*.30);
+      const scale = Math.min(width/1920,previewHeight/1080);
+      document.documentElement.style.setProperty('--review-viewport-height',`${height}px`);
+      document.documentElement.style.setProperty('--review-preview-height',`${previewHeight}px`);
+      document.documentElement.style.setProperty('--review-transform',`translate(${(width-1920*scale)/2}px,${(previewHeight-1080*scale)/2}px) scale(${scale})`);
+    }
+    layoutReview(); addEventListener('resize',layoutReview);
+    window.visualViewport?.addEventListener('resize',layoutReview);
     function persist() {
       draft.updatedAt = new Date().toISOString();
       try { localStorage.setItem(key, JSON.stringify(draft)); storageError = false; } catch { storageError = true; }
@@ -229,9 +355,9 @@
     }
     function renderSummary() {
       const changes = Object.values(draft.changes), comments = Object.keys(draft.comments);
-      $('review-summary').textContent = `${changes.length} correction(s) · ${comments.length} slide(s) commentée(s)`;
+      $('review-summary').textContent = `${changes.length} correction(s) · ${comments.length} slide(s) commentée(s)${orderChanged() ? ' · ordre modifié' : ''}`;
       $('review-list').replaceChildren();
-      slides.forEach((slide,index) => {
+      orderedSlides().forEach((slide,index) => {
         const id = slide.dataset.reviewSlide, count = changes.filter(c => c.slideId === id).length;
         if (!count && !draft.comments[id]) return;
         const item = document.createElement('li');
@@ -249,6 +375,7 @@
       active = value; document.body.classList.toggle('reviewing', active); panel.hidden = !active;
       blocks.forEach(({el}) => active ? el.setAttribute('contenteditable','true') : el.removeAttribute('contenteditable'));
       toggle.textContent = active ? 'Quitter la révision' : 'Réviser · E'; toggle.setAttribute('aria-expanded',String(active));
+      if (active) { layoutReview(); select.value = current().dataset.reviewSlide; loadSlide(); }
       if (!active) { persist(); toggle.focus(); }
     }
     function exportReview() {
@@ -256,7 +383,8 @@
       const payload = {schemaVersion:1, kind:'deck-review', exportedAt:new Date().toISOString(),
         deck:{...config, title:document.title, url:location.href.split('#')[0]},
         startedAt:draft.startedAt, instruction:draft.instruction,
-        agentInstructions:'Comparer la source à sourceHash et aux textes avant modification. Conserver les corrections directes, interpréter les commentaires, signaler les conflits sans écraser les changements plus récents. Proposer les modifications dans les fichiers sources et résumer les demandes traitées et restantes.',
+        slideOrder:[...draft.slideOrder],
+        agentInstructions:'Comparer la source à sourceHash et aux textes avant modification. Appliquer slideOrder comme ordre souhaité des identifiants stables ; slideNumber indique la position dans la source d’origine. Conserver les corrections directes, interpréter les commentaires, signaler les conflits sans écraser les changements plus récents. Proposer les modifications dans les fichiers sources et résumer les demandes traitées et restantes.',
         slides:slides.map((slide,index) => ({slideId:slide.dataset.reviewSlide, slideNumber:index+1,
           title:(slide.querySelector('h1,h2,h3')?.textContent || '').trim(),
           comment:draft.comments[slide.dataset.reviewSlide] || '',
@@ -266,13 +394,29 @@
       setTimeout(() => URL.revokeObjectURL(url),1000);
     }
     toggle.onclick = () => setActive(); $('review-close').onclick = () => setActive(false); $('review-export').onclick = exportReview;
-    select.onchange = loadComment;
+    select.onchange = () => showSlide(select.value);
+    $('review-prev').onclick = () => showSlide(draft.slideOrder[draft.slideOrder.indexOf(select.value)-1]);
+    $('review-next').onclick = () => showSlide(draft.slideOrder[draft.slideOrder.indexOf(select.value)+1]);
+    $('review-up').onclick = () => moveSlide(draft.slideOrder.indexOf(select.value)-1);
+    $('review-down').onclick = () => moveSlide(draft.slideOrder.indexOf(select.value)+1);
+    $('review-position').onchange = event => moveSlide(Number(event.target.value));
+    $('review-reset-order').onclick = () => {
+      const id = select.value; draft.slideOrder = [...originalOrder]; applyOrder(id); persist(); renderSummary();
+    };
+    blockSelect.onchange = syncTextEditor;
+    textEditor.oninput = () => {
+      const block = blocks.find(block => block.id === blockSelect.value);
+      if (!block) return;
+      if (textEditor.value === block.beforeText) block.el.innerHTML = block.beforeHtml;
+      else block.el.innerText = textEditor.value;
+      saveBlock(block);
+    };
     comment.oninput = () => { if(comment.value.trim()) draft.comments[select.value] = comment.value; else delete draft.comments[select.value]; persist(); renderSummary(); };
     instruction.oninput = () => { draft.instruction = instruction.value; persist(); };
     // Follow presentation navigation without rebuilding the panel on every animation.
     new MutationObserver(() => {
       const id = current().dataset.reviewSlide;
-      if (select.value !== id) { select.value=id; loadComment(); }
+      if (select.value !== id) { select.value=id; loadSlide(); }
     }).observe(document.getElementById('deckStage') || slides[0].parentElement,{subtree:true,attributes:true,attributeFilter:['class']});
     document.addEventListener('paste', event => {
       if (active && event.target.isContentEditable) { event.preventDefault(); document.execCommand('insertText',false,event.clipboardData.getData('text/plain')); }
@@ -288,15 +432,15 @@
 <body>
   <div class="deck-viewport"><main class="deck-stage" id="deckStage">
     <section class="slide s-dark active" data-review-slide="s-c3fe73f261b9" data-review-node="b-97b5011f164f"><div class="grid-lines" data-review-node="b-31493d24ead4"></div><div class="slide-inner" data-review-node="b-b5ac6dc2f036">
-      <div class="chrome" data-review-node="b-78ffb56a1e03"><span data-review-node="b-e15c5fdc89fa">TNSI · TP S2</span><span data-review-node="b-00342c6016ae">01 / 09</span></div>
+      <div class="chrome" data-review-node="b-78ffb56a1e03"><span data-review-node="b-e15c5fdc89fa">TNSI · TP S2</span><span data-review-node="b-00342c6016ae">01 / 10</span></div>
       <div class="kicker reveal" data-editable data-review-node="b-4112274f34a4">Mission de la séance</div>
       <h1 class="reveal" data-editable data-review-node="b-0c85ed47c583">Brancher l’IA.<br data-review-node="b-128a317b5c51">Garder le contrôle.</h1>
       <p class="lead reveal" data-editable data-review-node="b-abe17bec0d71">Un LLM derrière un port, puis un premier RAG capable de citer ses preuves et de s’abstenir.</p>
       <div class="footer" data-review-node="b-a5feebc36dd1"><span data-review-node="b-a734035f79d2">Votre domaine · vos données</span><span data-review-node="b-ceb61d2f2d53">→ pour commencer</span></div>
-    </div></section>
+    <img class="adk-cover" src="../assets/adk-web-local.png" alt="ADK Web local, même agent que le chat du starter, en simulation."/></div></section>
 
-    <section class="slide s-light" data-review-slide="s-fd81f1dd84f1" data-review-node="b-7f4b92d1697c"><div class="slide-inner" data-review-node="b-3abe8f1cdd94">
-      <div class="chrome" data-review-node="b-36bd7d3984fc"><span data-review-node="b-b393c23e6d9c">S2 · résultat attendu</span><span data-review-node="b-7157b4bd3a30">02 / 09</span></div>
+<section class="slide s-light" data-review-slide="s-fd81f1dd84f1" data-review-node="b-7f4b92d1697c"><div class="slide-inner" data-review-node="b-3abe8f1cdd94">
+      <div class="chrome" data-review-node="b-36bd7d3984fc"><span data-review-node="b-b393c23e6d9c">S2 · résultat attendu</span><span data-review-node="b-7157b4bd3a30">02 / 10</span></div>
       <div class="kicker reveal" data-editable data-review-node="b-86ed7b277e17">La cible</div>
       <h2 class="reveal" data-editable data-review-node="b-b0db89e72c48">À la fin, votre assistant sait répondre… ou dire qu’il ne sait pas.</h2>
       <div class="cards reveal" data-review-node="b-80c621ccdbc3">
@@ -307,8 +451,8 @@
       <div class="footer" data-review-node="b-f1ae07a1199f"><span data-review-node="b-1eea43eb2673">Critère clé : aucun fallback silencieux</span><span data-review-node="b-f3b10a062112">Checkpoint 0</span></div>
     </div></section>
 
-    <section class="slide s-dark" data-review-slide="s-7a72f2020355" data-review-node="b-cfb139341e45"><div class="slide-inner" data-review-node="b-c2dd176e3f9c">
-      <div class="chrome" data-review-node="b-668e861ad83a"><span data-review-node="b-d300b96cb29e">Étape 0 · préparer</span><span data-review-node="b-1c423f71c665">03 / 09</span></div>
+<section class="slide s-dark" data-review-slide="s-7a72f2020355" data-review-node="b-cfb139341e45"><div class="slide-inner" data-review-node="b-c2dd176e3f9c">
+      <div class="chrome" data-review-node="b-668e861ad83a"><span data-review-node="b-d300b96cb29e">Étape 0 · préparer</span><span data-review-node="b-1c423f71c665">03 / 10</span></div>
       <div class="kicker reveal" data-editable data-review-node="b-a3c0435f8415">20 minutes maximum</div><h2 class="reveal" data-editable data-review-node="b-7450315bc38c">Préparez un corpus petit, propre et explicable.</h2>
       <div class="two-col" data-review-node="b-11f6e2502594">
         <div class="steps reveal" data-review-node="b-846aff23bed8">
@@ -321,24 +465,30 @@
       <div class="footer" data-review-node="b-325369ae917c"><span data-review-node="b-425af1162935">Ne jamais copier de données confidentielles</span><span data-review-node="b-328d129dc7ca">Checkpoint 1</span></div>
     </div></section>
 
-    <section class="slide s-dark" data-review-slide="s-c080aef9cd26" data-review-node="b-298425b0c351"><div class="slide-inner" data-review-node="b-c5967b9953d2">
-      <div class="chrome" data-review-node="b-131609fa757c"><span data-review-node="b-0786d031c937">Étape 1 · isoler le LLM</span><span data-review-node="b-208275977e21">04 / 09</span></div>
-      <div class="kicker reveal" data-editable data-review-node="b-87d833a0370d">Port d’abord</div><h2 class="reveal" data-editable data-review-node="b-0503db8ecda0">Le use case demande une capacité, pas une marque.</h2>
+<section class="slide s-dark" data-review-slide="s-c080aef9cd26" data-review-node="b-298425b0c351"><div class="slide-inner" data-review-node="b-c5967b9953d2">
+      <div class="chrome" data-review-node="b-131609fa757c"><span data-review-node="b-0786d031c937">Étape 1 · isoler le LLM</span><span data-review-node="b-208275977e21">04 / 10</span></div>
+      <div class="kicker reveal" data-editable data-review-node="b-87d833a0370d">Le runtime est fourni</div><h2 class="reveal" data-editable data-review-node="b-0503db8ecda0">Utilisez ADK derrière le port fourni.</h2>
       <div class="flow reveal" data-review-node="b-5f34f27202b2">
         <div class="flow-node" data-editable data-review-node="b-2c16591a7ebe">Interface<br data-review-node="b-c87a7f84b1b3">Streamlit</div><div class="flow-arrow" data-review-node="b-ee6d4c2c7a2b">→</div>
         <div class="flow-node" data-editable data-review-node="b-6bbe958ea66a">Use case<br data-review-node="b-fbe0c58a5216">Chat</div><div class="flow-arrow" data-review-node="b-cef01ae8c020">→</div>
         <div class="flow-node" style="border-color:#4589ff" data-editable data-review-node="b-9c93e204dc74">TextGenerator<br data-review-node="b-124ce22fd94e">Port</div><div class="flow-arrow" data-review-node="b-c53af7393436">→</div>
-        <div class="flow-node" data-editable data-review-node="b-dc7d5f04c17e">Fake / Cohere<br data-review-node="b-ec26188c50de">/ Ollama</div>
+        <div class="flow-node" data-editable data-review-node="b-dc7d5f04c17e">ADK · Fake / Cohere<br data-review-node="b-ec26188c50de">/ Gemini</div>
       </div>
       <div class="checklist reveal" data-review-node="b-5d87190cd78b">
-        <div class="check" data-editable data-review-node="b-2796f52bfab6">Définir une méthode unique et lisible.</div><div class="check" data-editable data-review-node="b-5f8b51c49753">Choisir le fournisseur dans le bootstrap.</div>
+        <div class="check" data-editable data-review-node="b-2796f52bfab6">Repérer TextGeneratorPort et son adaptateur ADK.</div><div class="check" data-editable data-review-node="b-5f8b51c49753">Configurer Cohere ou Gemini dans .env.</div>
         <div class="check" data-editable data-review-node="b-5e0547c2cee2">Échouer clairement si la config est inconnue.</div><div class="check" data-editable data-review-node="b-ef8da0870f75">Tester le contrat avec le fake.</div>
       </div>
       <div class="footer" data-review-node="b-91d9304189c9"><span data-review-node="b-35a5992e3a7d">Capsule C8 · DIP et ports</span><span data-review-node="b-15cdc06769e9">Checkpoint 2</span></div>
     </div></section>
 
-    <section class="slide s-dark" data-review-slide="s-05f510f43ce9" data-review-node="b-39b86b249b22"><div class="slide-inner" data-review-node="b-008d104a79f6">
-      <div class="chrome" data-review-node="b-f14110b4d432"><span data-review-node="b-b9657f0731eb">Étape 2 · indexer</span><span data-review-node="b-6c1e766010cd">05 / 09</span></div>
+<section class="slide s-light" data-review-slide="s-42297be76b19" data-review-node="b-e0c1441a0717"><div class="slide-inner" data-review-node="b-58854770659b"><div class="chrome" data-review-node="b-e069f6f6879e"><span data-review-node="b-2d819d12416c">TNSI · TP S2 · Google ADK</span><span data-review-node="b-8f8e6fd5a7d6">05 / 10</span></div><div class="kicker reveal" data-review-node="b-8df8635f72a7">S2 · utilisation guidée</div><h2 class="reveal" data-review-node="b-5773586b91af">Deux fournisseurs. Le même parcours fourni.</h2><div class="adk-body reveal" data-review-node="b-021f0843306b"><div class="adk-columns" data-review-node="b-4a93b46d56ad"><div data-review-node="b-af0d1ae40fa0"><h3 data-review-node="b-49e9c1d4d912">Cohere</h3><pre class="adk-code" data-review-node="b-f55b6211d0d2">FILROUGE_LLM_PROVIDER=cohere
+COHERE_MODEL=command-a-03-2025
+COHERE_API_KEY=…</pre></div><div data-review-node="b-06d906bd567d"><h3 data-review-node="b-496d4e245cd3">Gemini</h3><pre class="adk-code" data-review-node="b-86c5716a5c27">FILROUGE_LLM_PROVIDER=gemini
+GEMINI_MODEL=gemini-2.5-flash
+GOOGLE_API_KEY=…</pre></div></div><p class="adk-note" data-review-node="b-88fa5839a6c6">Choisir un profil dans votre .env local, puis redémarrer Streamlit. Le profil fake reste disponible sans clé, avec une simulation explicite.</p><pre class="adk-code" data-review-node="b-0a15bf867cc1">uv run adk web . --host 127.0.0.1 --port 8001</pre><p class="adk-note" data-review-node="b-9d5365effae3">Choisir adk_agent pour observer le parcours. Les concepts ADK seront étudiés en S3. Le backend d’embedding reste un choix distinct.</p></div><div class="footer" data-review-node="b-bf5fd23baa81"><span data-review-node="b-4f1ea2b5a568">Comprendre, observer, puis adapter à son domaine</span><span data-review-node="b-5d03b5c0a43f">ADK 2.14.0</span></div></div></section>
+
+<section class="slide s-dark" data-review-slide="s-05f510f43ce9" data-review-node="b-39b86b249b22"><div class="slide-inner" data-review-node="b-008d104a79f6">
+      <div class="chrome" data-review-node="b-f14110b4d432"><span data-review-node="b-b9657f0731eb">Étape 2 · indexer</span><span data-review-node="b-6c1e766010cd">06 / 10</span></div>
       <div class="kicker reveal" data-editable data-review-node="b-ba334fac2c8f">Use case Ingest</div><h2 class="reveal" data-editable data-review-node="b-8ff9c28cf6ab">Transformez les documents en preuves recherchables.</h2>
       <div class="flow reveal" data-review-node="b-667edc8fdf26">
         <div class="flow-node" data-editable data-review-node="b-5b85258945b2">Documents<br data-review-node="b-d25cf64f4d20"><small data-review-node="b-5185a63d61fb">id + version</small></div><div class="flow-arrow" data-review-node="b-3202fe044d67">→</div>
@@ -354,8 +504,8 @@
       <div class="footer" data-review-node="b-fdc9f0cec95f"><span data-review-node="b-c43bb338bccf">Projection reconstructible</span><span data-review-node="b-a06dc32cc9bc">Checkpoint 3</span></div>
     </div></section>
 
-    <section class="slide s-dark" data-review-slide="s-41d72c76cd68" data-review-node="b-b1a16077dc05"><div class="slide-inner" data-review-node="b-56f7b4a2eb27">
-      <div class="chrome" data-review-node="b-60920bbaa3f9"><span data-review-node="b-245c588c6666">Étape 3 · répondre</span><span data-review-node="b-c46d105c3d46">06 / 09</span></div>
+<section class="slide s-dark" data-review-slide="s-41d72c76cd68" data-review-node="b-b1a16077dc05"><div class="slide-inner" data-review-node="b-56f7b4a2eb27">
+      <div class="chrome" data-review-node="b-60920bbaa3f9"><span data-review-node="b-245c588c6666">Étape 3 · répondre</span><span data-review-node="b-c46d105c3d46">07 / 10</span></div>
       <div class="kicker reveal" data-editable data-review-node="b-6bf37a25b6da">Use case AskWithRag</div><h2 class="reveal" data-editable data-review-node="b-218fb1e5d5d1">Recherchez d’abord. Générez ensuite.</h2>
       <div class="two-col" data-review-node="b-277ea06d471f">
         <div class="steps reveal" data-review-node="b-63fc79c7872c">
@@ -368,8 +518,8 @@
       <div class="footer" data-review-node="b-9c84fe2616f1"><span data-review-node="b-765da1dca98d">Le modèle ne fabrique pas la preuve</span><span data-review-node="b-5e5c569f9c3f">Checkpoint 4</span></div>
     </div></section>
 
-    <section class="slide s-dark" data-review-slide="s-bcc671090964" data-review-node="b-b6a626fa0981"><div class="slide-inner" data-review-node="b-57379347490a">
-      <div class="chrome" data-review-node="b-a39a17bf650c"><span data-review-node="b-d540d960b7e2">Étape 4 · nettoyer</span><span data-review-node="b-942fc43461d5">07 / 09</span></div>
+<section class="slide s-dark" data-review-slide="s-bcc671090964" data-review-node="b-b6a626fa0981"><div class="slide-inner" data-review-node="b-57379347490a">
+      <div class="chrome" data-review-node="b-a39a17bf650c"><span data-review-node="b-d540d960b7e2">Étape 4 · nettoyer</span><span data-review-node="b-942fc43461d5">08 / 10</span></div>
       <div class="kicker reveal" data-editable data-review-node="b-00941e7ae8f3">Capsule C4 · SRP</div><h2 class="reveal" data-editable data-review-node="b-344aeef3cd5f">Une fonction pure pour la salutation. Rien de plus.</h2>
       <div class="two-col" data-review-node="b-67afec8ed68c">
         <div class="info-card reveal" data-review-node="b-c81d44c4c9cc"><h3 data-editable data-review-node="b-006b160a22b1">À extraire</h3><p style="margin-top:20px" data-editable data-review-node="b-88976163fe46"><code data-review-node="b-4adf03292154">build_greeting(name, language)</code> construit le texte. Streamlit lit les champs et affiche le résultat.</p><ul data-review-node="b-28714ac4fc66"><li data-editable data-review-node="b-5fd9600d866d">aucun import Streamlit dans la fonction ;</li><li data-editable data-review-node="b-3cb66334c8a8">langues supportées testées ;</li><li data-editable data-review-node="b-ff9487fbfb45">entrée invalide explicite.</li></ul></div>
@@ -379,8 +529,8 @@ uv run ruff check .</div><div class="checklist" style="grid-template-columns:1fr
       <div class="footer" data-review-node="b-5daeea8571e0"><span data-review-node="b-e81748747c1e">Petit exercice, responsabilité visible</span><span data-review-node="b-53b822c33dec">Checkpoint 5</span></div>
     </div></section>
 
-    <section class="slide s-light" data-review-slide="s-a29d68611851" data-review-node="b-75fa6b039a16"><div class="slide-inner" data-review-node="b-4c731940a2ac">
-      <div class="chrome" data-review-node="b-a6f96c80bce0"><span data-review-node="b-22e3564daa3e">Démo de fin</span><span data-review-node="b-3572aca7f4e6">08 / 09</span></div>
+<section class="slide s-light" data-review-slide="s-a29d68611851" data-review-node="b-75fa6b039a16"><div class="slide-inner" data-review-node="b-4c731940a2ac">
+      <div class="chrome" data-review-node="b-a6f96c80bce0"><span data-review-node="b-22e3564daa3e">Démo de fin</span><span data-review-node="b-3572aca7f4e6">09 / 10</span></div>
       <div class="kicker reveal" data-editable data-review-node="b-093d5ec6a312">Montrez, ne racontez pas</div><h2 class="reveal" data-editable data-review-node="b-5db2895ec6ad">Votre démonstration tient en quatre questions.</h2>
       <div class="cards reveal" data-review-node="b-1f0c3803599b">
         <div class="info-card" data-review-node="b-733d155ce5cb"><span class="badge" data-review-node="b-9b5c437517b4">01</span><h3 style="margin-top:22px" data-editable data-review-node="b-28db7c8d768f">Réponse directe</h3><p data-editable data-review-node="b-57335d250500">Une information présente dans un seul document.</p></div>
@@ -392,8 +542,8 @@ git commit -m "Ajoute le LLM derrière un port et le premier RAG"</div>
       <div class="footer" data-review-node="b-bd4ffd0e1db3"><span data-review-node="b-2915373f6387">Capturer les limites observées dans le README</span><span data-review-node="b-1a3a97897bf6">Jalon S2</span></div>
     </div></section>
 
-    <section class="slide s-dark" data-review-slide="s-80ae18c1b0aa" data-review-node="b-8dd09d6ba96a"><div class="slide-inner" data-review-node="b-82177128cccc">
-      <div class="chrome" data-review-node="b-e3b87634d347"><span data-review-node="b-0caaa254100d">Récapitulatif</span><span data-review-node="b-4a02e9a7e71a">09 / 09</span></div>
+<section class="slide s-dark" data-review-slide="s-80ae18c1b0aa" data-review-node="b-8dd09d6ba96a"><div class="slide-inner" data-review-node="b-82177128cccc">
+      <div class="chrome" data-review-node="b-e3b87634d347"><span data-review-node="b-0caaa254100d">Récapitulatif</span><span data-review-node="b-4a02e9a7e71a">10 / 10</span></div>
       <div class="kicker reveal" data-editable data-review-node="b-9f4d5380a323">Avant de quitter S2</div><h2 class="reveal" data-editable data-review-node="b-79d77a7c77a4">Votre système est remplaçable, sourcé et testable.</h2>
       <div class="recap reveal" data-review-node="b-442e5ee77a63">
         <div class="recap-box" data-review-node="b-4d0363fc2904"><h3 data-editable data-review-node="b-c9dfc1f03335">Vous avez construit</h3><ul data-review-node="b-89913c050603"><li data-editable data-review-node="b-9dc46be3d22a">un port LLM et plusieurs adaptateurs ;</li><li data-editable data-review-node="b-258bfc186a5e">une ingestion idempotente ;</li><li data-editable data-review-node="b-d21a1fd6c24a">un RAG avec citations ;</li><li data-editable data-review-node="b-b7163e6d06ef">une abstention explicite.</li></ul></div>
@@ -409,10 +559,10 @@ git commit -m "Ajoute le LLM derrière un port et le premier RAG"</div>
   <script>
     /* === CONTRÔLEUR DE PRÉSENTATION === */
     class SlidePresentation {
-      constructor(){this.slides=[...document.querySelectorAll('.slide')];this.index=0;this.stage=document.getElementById('deckStage');this.touchStart=0;this.wheelLock=false;this.scale();this.bind();this.show(0);}
+      constructor(){this.slides=[...document.querySelectorAll('.slide')];this.index=0;this.stage=document.getElementById('deckStage');this.touchStart=0;this.wheelLock=false;this.scale();this.bind();this.show(Math.max(0,Number(location.hash.replace('#slide-',''))-1)||0);}
       scale(){const apply=()=>{const f=Math.min(innerWidth/1920,innerHeight/1080);const x=(innerWidth-1920*f)/2;const y=(innerHeight-1080*f)/2;this.stage.style.transform=`translate(${x}px, ${y}px) scale(${f})`;};apply();addEventListener('resize',apply);}
-      bind(){document.getElementById('prev').onclick=()=>this.show(this.index-1);document.getElementById('next').onclick=()=>this.show(this.index+1);addEventListener('keydown',e=>{if(e.target.isContentEditable)return;if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();this.show(this.index+1);}if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();this.show(this.index-1);}if(e.key==='Home')this.show(0);if(e.key==='End')this.show(this.slides.length-1);});addEventListener('wheel',e=>{if(this.wheelLock)return;this.wheelLock=true;this.show(this.index+(e.deltaY>0?1:-1));setTimeout(()=>this.wheelLock=false,500);},{passive:true});addEventListener('touchstart',e=>this.touchStart=e.changedTouches[0].screenX,{passive:true});addEventListener('touchend',e=>{const d=e.changedTouches[0].screenX-this.touchStart;if(Math.abs(d)>60)this.show(this.index+(d<0?1:-1));},{passive:true});}
-      show(i){this.index=Math.max(0,Math.min(i,this.slides.length-1));this.slides.forEach((s,n)=>{s.classList.toggle('active',n===this.index);s.classList.toggle('visible',n===this.index);});document.getElementById('counter').textContent=`${this.index+1} / ${this.slides.length}`;document.getElementById('progress').style.width=`${(this.index+1)/this.slides.length*100}%`;}
+      bind(){document.getElementById('prev').onclick=()=>this.show(this.index-1);document.getElementById('next').onclick=()=>this.show(this.index+1);addEventListener('keydown',e=>{if(e.target.isContentEditable)return;if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();this.show(this.index+1);}if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();this.show(this.index-1);}if(e.key==='Home')this.show(Math.max(0,Number(location.hash.replace('#slide-',''))-1)||0);if(e.key==='End')this.show(this.slides.length-1);});addEventListener('wheel',e=>{if(this.wheelLock)return;this.wheelLock=true;this.show(this.index+(e.deltaY>0?1:-1));setTimeout(()=>this.wheelLock=false,500);},{passive:true});addEventListener('touchstart',e=>this.touchStart=e.changedTouches[0].screenX,{passive:true});addEventListener('touchend',e=>{const d=e.changedTouches[0].screenX-this.touchStart;if(Math.abs(d)>60)this.show(this.index+(d<0?1:-1));},{passive:true});}
+      show(i){this.index=Math.max(0,Math.min(i,this.slides.length-1));history.replaceState(null,'',`#slide-${this.index+1}`);this.slides.forEach((s,n)=>{s.classList.toggle('active',n===this.index);s.classList.toggle('visible',n===this.index);});document.getElementById('counter').textContent=`${this.index+1} / ${this.slides.length}`;document.getElementById('progress').style.width=`${(this.index+1)/this.slides.length*100}%`;}
     }
     /* === ÉDITION LOCALE ET EXPORT === */
 const deck = new SlidePresentation();

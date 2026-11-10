@@ -16,7 +16,8 @@ class FakeTextGenerator:
             f"Bonjour ! J'ai bien reçu votre message : « {message} ».\n\n"
             "En Séance 1, nous validons le socle applicatif local et la circulation "
             "des flux dans l'architecture hexagonale. Ce composant est un adaptateur de test (Fake). "
-            "En Séance 2, nous connecterons ce port à de véritables modèles (Cohere ou Ollama)."
+            "Google ADK exécute déjà ce parcours local. En Séance 2, nous choisirons Cohere ou Gemini ; "
+            "en Séance 3, nous ajouterons les tools et le MCP."
         )
         return ChatReply(
             text=reply_content,

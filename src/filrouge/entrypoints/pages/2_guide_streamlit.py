@@ -3,6 +3,11 @@
 import streamlit as st
 
 st.header("💡 Guide Streamlit — Architecture, Composants & Bonnes Pratiques")
+st.info(
+    "Le chat utilise Google ADK derrière TextGeneratorPort. Le profil fake reste local et sans clé. "
+    "S2 configure Cohere ou Gemini ; S3 explique Agent, Runner, Session, Event, tools et MCP. "
+    "L'interface reste dans entrypoints/ ; les objets ADK restent dans adapters/."
+)
 st.write(
     """
     Ce guide pédagogique détaille l'organisation de l'interface graphique du projet,

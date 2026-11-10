@@ -52,22 +52,32 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
     if (!field(event.target) && !event.ctrlKey && !event.metaKey && event.key.toLowerCase() === 'e') {
       event.preventDefault(); event.stopImmediatePropagation(); api.toggle(); return;
     }
-    if (field(event.target)) event.stopImmediatePropagation();
+    if (field(event.target) || event.target.closest?.('#review-panel')) event.stopImmediatePropagation();
     if (event.key === 'Escape' && api.active) { api.toggle(false); event.stopImmediatePropagation(); }
   }, true);
-  for (const type of ['wheel', 'touchstart', 'touchend']) window.addEventListener(type, event => {
-    if (field(event.target) || event.target.closest?.('#review-panel')) event.stopImmediatePropagation();
+  for (const type of ['wheel', 'touchstart', 'touchmove', 'touchend']) window.addEventListener(type, event => {
+    if (field(event.target) || event.target.closest?.('#review-panel,#review-toggle')) event.stopImmediatePropagation();
   }, {capture:true, passive:true});
 
   document.addEventListener('DOMContentLoaded', () => {
     const config = JSON.parse(document.getElementById('review-config').textContent);
     const slides = [...document.querySelectorAll('.slide')];
     if (!slides.length) return;
+    // The courses and practicals use two controller APIs. Keep their navigation
+    // arrays in sync with the DOM, including after leaving review mode.
+    const presentation = [window.deckPresentation, window.deck, typeof deck !== 'undefined' ? deck : null]
+      .find(candidate => Array.isArray(candidate?.slides));
+    const originalOrder = slides.map(slide => slide.dataset.reviewSlide);
     const key = `deck-review-v1:${config.deckId}:${config.sourceHash}`;
     const startedAt = new Date().toISOString();
     let active = false, storageError = false, draft = {comments:{}, changes:{}, instruction:'', startedAt};
     try { const saved = JSON.parse(localStorage.getItem(key)); if (saved) draft = saved; }
     catch { storageError = true; }
+    draft.comments ||= {}; draft.changes ||= {}; draft.instruction ||= '';
+    if (!Array.isArray(draft.slideOrder) || draft.slideOrder.length !== slides.length ||
+        new Set(draft.slideOrder).size !== slides.length || draft.slideOrder.some(id => !originalOrder.includes(id))) {
+      draft.slideOrder = [...originalOrder];
+    }
     const blocks = [];
     const selector = 'h1,h2,h3,h4,p,li,pre,td,th,span,strong,code,small,div';
     slides.forEach(slide => {
@@ -82,29 +92,52 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
         const saved = draft.changes[block.id];
         // Restore text and source formatting without executing markup from storage.
         if (saved) restoreText(el, saved);
-        el.addEventListener('input', () => {
-          if (textOf(el) === block.beforeText) delete draft.changes[block.id];
-          else draft.changes[block.id] = {blockId:block.id, slideId:block.slideId,
-            beforeHtml:block.beforeHtml, beforeText:block.beforeText, afterText:textOf(el), afterHtml:el.innerHTML};
-          persist(); renderSummary();
-        });
+        el.addEventListener('input', () => { saveBlock(block); syncTextEditor(); });
       });
     });
     const style = document.createElement('style');
     style.textContent = `
       .edit-toggle,.edit-hotzone{display:none!important}
       #review-toggle,#review-panel{font:14px/1.5 system-ui,sans-serif;color:#17263b;z-index:100100;position:fixed;box-sizing:border-box}
-      #review-toggle{top:12px;right:12px;background:#fff;border:1px solid #ccd5e1;border-radius:8px;padding:9px 14px;cursor:pointer;box-shadow:0 3px 16px #0002}
-      #review-panel{top:62px;right:12px;width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 80px);overflow:auto;background:#fff;padding:20px;border:1px solid #ccd5e1;border-radius:12px;box-shadow:0 8px 36px #0003;text-align:left}
+      #review-toggle{top:max(8px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));min-height:44px;background:#fff;border:1px solid #ccd5e1;border-radius:8px;padding:9px 14px;cursor:pointer;box-shadow:0 3px 16px #0002}
+      #review-panel{top:62px;right:12px;width:min(380px,calc(100vw - 24px));max-height:calc(var(--review-viewport-height,100dvh) - 74px);display:flex;flex-direction:column;background:#fff;border:1px solid #ccd5e1;border-radius:12px;box-shadow:0 8px 36px #0003;text-align:left;overflow:hidden}
       #review-panel[hidden]{display:none} #review-panel *{box-sizing:border-box;letter-spacing:normal;text-transform:none}
-      #review-panel h2{font:600 19px system-ui;margin:0 0 12px;color:#17263b}
+      #review-panel h2{font:600 19px system-ui;margin:0;color:#17263b}
+      #review-header,#review-actions{display:block;margin:0;padding:12px 16px;flex-shrink:0;background:#fff;font:inherit;color:inherit}
+      #review-header{border-bottom:1px solid #dce3ed} #review-actions{border-top:1px solid #dce3ed}
+      #review-heading,.review-row{display:flex;align-items:center;gap:8px}
+      #review-heading{justify-content:space-between} .review-row>*{flex:1;min-width:0}
+      #review-content{padding:0 16px 12px;overflow:auto;overscroll-behavior:contain;min-height:0;touch-action:pan-y}
+      #review-navigation{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
+      #review-navigation button{min-width:44px} #review-page{font-variant-numeric:tabular-nums}
       #review-panel label{display:block;margin-top:14px;font-weight:600}
-      #review-panel textarea,#review-panel select{font:14px/1.5 system-ui;width:100%;margin:6px 0;padding:8px;border:1px solid #bcc9d9;border-radius:6px;color:#17263b;background:white}
-      #review-panel textarea{min-height:90px;resize:vertical} #review-panel button{font:14px system-ui;padding:9px;border:1px solid #bcc9d9;border-radius:6px;cursor:pointer;background:#edf3fa;color:#17263b;margin:5px 0}
+      #review-panel textarea,#review-panel select{font:16px/1.5 system-ui;width:100%;min-height:44px;margin:6px 0;padding:8px;border:1px solid #bcc9d9;border-radius:6px;color:#17263b;background:white}
+      #review-panel textarea{min-height:90px;resize:vertical} #review-panel button{font:14px system-ui;min-height:44px;padding:9px;border:1px solid #bcc9d9;border-radius:6px;cursor:pointer;background:#edf3fa;color:#17263b;margin:0}
+      #review-panel button:disabled{opacity:.45;cursor:default}
+      #review-panel :focus-visible,#review-toggle:focus-visible{outline:3px solid #3478e5;outline-offset:2px}
       #review-panel .primary{width:100%;background:#174ec0;color:white;border-color:#174ec0}
       #review-panel p,#review-panel summary{font:13px/1.5 system-ui;color:#526278;margin:10px 0}
+      #review-panel summary{cursor:pointer;min-height:44px;padding:10px 0}
+      #review-actions p{margin:6px 0 0;font-size:12px}
       #review-list{padding-left:20px;font:13px/1.5 system-ui} #review-list button{text-align:left}
       body.reviewing [contenteditable=true]{outline:2px dashed #3478e5;outline-offset:3px;cursor:text}
+      @media screen and (max-width:760px){
+        body.reviewing .deck-viewport{top:56px;height:var(--review-preview-height);bottom:auto}
+        body.reviewing #deckStage{transform:var(--review-transform)!important}
+        body.reviewing .deck-controls,body.reviewing .hud,body.reviewing .hud-controls,body.reviewing .progress-track{visibility:hidden}
+        #review-panel{top:calc(56px + var(--review-preview-height));left:0;right:0;width:100%;height:calc(var(--review-viewport-height) - 56px - var(--review-preview-height));max-height:none;border-radius:14px 14px 0 0}
+        #review-actions{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+        #review-actions p{display:none}
+        body.reviewing.review-compact #review-header{display:flex;align-items:center;gap:8px;padding:8px 16px}
+        body.reviewing.review-compact #review-heading{order:2}
+        body.reviewing.review-compact #review-heading h2{display:none}
+        body.reviewing.review-compact #review-navigation{flex:1;margin:0}
+      }
+      @media screen and (min-width:761px) and (max-height:500px) and (pointer:coarse){
+        body.reviewing .deck-viewport{top:56px;width:calc(100% - 404px);height:calc(var(--review-viewport-height) - 56px);bottom:auto}
+        body.reviewing #deckStage{transform:var(--review-transform)!important}
+        body.reviewing .deck-controls,body.reviewing .hud,body.reviewing .hud-controls,body.reviewing .progress-track{visibility:hidden}
+      }
       @media print{#review-panel,#review-toggle{display:none!important}}
     `;
     document.head.append(style);
@@ -112,24 +145,110 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
     toggle.setAttribute('aria-expanded','false'); toggle.setAttribute('aria-controls','review-panel'); document.body.append(toggle);
     const panel = document.createElement('aside'); panel.id = 'review-panel'; panel.hidden = true;
     panel.setAttribute('aria-label','Révision du deck');
-    panel.innerHTML = `<h2>Révision du deck</h2><p>Corrigez les textes dans les slides et laissez vos consignes ici.</p>
-      <label for="review-slide">Slide à commenter</label><select id="review-slide"></select>
+    panel.innerHTML = `<header id="review-header"><div id="review-heading"><h2>Révision du deck</h2><button id="review-close">Fermer</button></div>
+      <nav id="review-navigation" aria-label="Parcourir les slides"><button id="review-prev" aria-label="Slide précédente">←</button><span id="review-page" aria-live="polite"></span><button id="review-next" aria-label="Slide suivante">→</button></nav></header>
+      <div id="review-content"><label for="review-slide">Slide à réviser</label><select id="review-slide"></select>
+      <details id="review-order"><summary>Modifier l’ordre des slides</summary>
+        <div class="review-row"><button id="review-up">↑ Monter</button><button id="review-down">↓ Descendre</button></div>
+        <label for="review-position">Placer à la position</label><select id="review-position"></select>
+        <button id="review-reset-order">Rétablir l’ordre d’origine</button>
+      </details>
+      <details id="review-text-editor"><summary>Corriger un texte</summary>
+        <label for="review-block">Texte de la slide</label><select id="review-block"></select>
+        <label for="review-text">Texte corrigé</label><textarea id="review-text"></textarea>
+        <p>La correction apparaît aussi dans la slide.</p>
+      </details>
       <label for="review-comment">Commentaire pour cette slide</label><textarea id="review-comment" placeholder="Ex. : alléger cette slide, ajouter un exemple…"></textarea>
       <label for="review-instruction">Consigne générale</label><textarea id="review-instruction" placeholder="Ex. : conserver le style et simplifier les explications."></textarea>
       <p id="review-status" role="status"></p><details><summary id="review-summary"></summary><ul id="review-list"></ul></details>
-      <button class="primary" id="review-export">Exporter la révision JSON</button>
-      <p>Joignez ce fichier à votre conversation avec l’agent pour retravailler le deck. Le dépôt sera modifié par l’agent.</p>
-      <button id="review-close">Quitter l’édition</button>`;
+      </div><footer id="review-actions"><button class="primary" id="review-export">Exporter la révision JSON</button>
+      <p>Joignez ce fichier à votre conversation avec l’agent pour retravailler le deck.</p></footer>`;
     document.body.append(panel);
     const $ = id => document.getElementById(id);
     const select = $('review-slide'), comment = $('review-comment'), instruction = $('review-instruction');
-    slides.forEach((slide, index) => {
-      const option = document.createElement('option'); option.value = slide.dataset.reviewSlide;
-      option.textContent = `${index+1}. ${(slide.querySelector('h1,h2,h3')?.textContent || 'Slide').trim().slice(0,90)}`; select.append(option);
-    });
+    const blockSelect = $('review-block'), textEditor = $('review-text');
+    const orderedSlides = () => draft.slideOrder.map(id => slides.find(slide => slide.dataset.reviewSlide === id));
+    const orderChanged = () => draft.slideOrder.some((id,index) => id !== originalOrder[index]);
+    slides.forEach((_, index) => $('review-position').add(new Option(String(index+1),String(index))));
     function current() { return slides.find(slide => slide.classList.contains('active')) || slides[0]; }
-    function loadComment() { comment.value = draft.comments[select.value] || ''; }
-    select.value = current().dataset.reviewSlide; loadComment(); instruction.value = draft.instruction;
+    function renderSlideOptions(id) {
+      select.replaceChildren();
+      orderedSlides().forEach((slide,index) => select.add(new Option(
+        `${index+1}. ${(slide.querySelector('h1,h2,h3')?.textContent || 'Slide').trim().slice(0,90)}`,slide.dataset.reviewSlide)));
+      select.value = id;
+    }
+    function syncTextEditor() {
+      const block = blocks.find(block => block.id === blockSelect.value);
+      if (document.activeElement !== textEditor) textEditor.value = block ? textOf(block.el) : '';
+    }
+    function loadSlide() {
+      comment.value = draft.comments[select.value] || '';
+      const previous = blockSelect.value;
+      blockSelect.replaceChildren();
+      blocks.filter(block => block.slideId === select.value).forEach(block =>
+        blockSelect.add(new Option(textOf(block.el).trim().slice(0,90),block.id)));
+      if ([...blockSelect.options].some(option => option.value === previous)) blockSelect.value = previous;
+      textEditor.disabled = blockSelect.disabled = !blockSelect.options.length;
+      syncTextEditor();
+      const index = draft.slideOrder.indexOf(select.value);
+      $('review-page').textContent = `${index+1} / ${slides.length}`;
+      $('review-position').value = String(index);
+      $('review-prev').disabled = $('review-up').disabled = index === 0;
+      $('review-next').disabled = $('review-down').disabled = index === slides.length-1;
+      $('review-reset-order').disabled = !orderChanged();
+    }
+    function showSlide(id) {
+      const index = draft.slideOrder.indexOf(id);
+      if (index < 0) return;
+      if (presentation?.showSlide) presentation.showSlide(index,true);
+      else if (presentation?.show) presentation.show(index);
+      else slides.forEach(slide => {
+        const visible = slide.dataset.reviewSlide === id;
+        slide.classList.toggle('active',visible); slide.classList.toggle('visible',visible);
+        slide.inert = !visible; slide.setAttribute('aria-hidden',String(!visible));
+      });
+      select.value = id; loadSlide();
+    }
+    function applyOrder(id) {
+      const ordered = orderedSlides();
+      ordered.forEach((slide,index) => {
+        slide.parentElement.append(slide);
+        slide.querySelectorAll('.slide-number').forEach(el => { el.textContent = `${String(index+1).padStart(2,'0')} / ${slides.length}`; });
+      });
+      if (presentation) presentation.slides = ordered;
+      renderSlideOptions(id); showSlide(id);
+    }
+    function moveSlide(position) {
+      const id = select.value, from = draft.slideOrder.indexOf(id);
+      if (position < 0 || position >= slides.length || position === from) return;
+      draft.slideOrder.splice(from,1); draft.slideOrder.splice(position,0,id);
+      applyOrder(id); persist(); renderSummary();
+    }
+    function saveBlock(block) {
+      if (textOf(block.el) === block.beforeText) delete draft.changes[block.id];
+      else draft.changes[block.id] = {blockId:block.id, slideId:block.slideId,
+        beforeHtml:block.beforeHtml, beforeText:block.beforeText, afterText:textOf(block.el), afterHtml:block.el.innerHTML};
+      persist(); renderSummary();
+    }
+    // A numeric URL hash denotes a position in the locally reordered deck.
+    const initialId = draft.slideOrder[slides.indexOf(current())];
+    if (orderChanged()) applyOrder(initialId);
+    else { renderSlideOptions(initialId); loadSlide(); }
+    instruction.value = draft.instruction;
+    function layoutReview() {
+      const height = window.visualViewport?.height || innerHeight;
+      const landscape = matchMedia('(min-width:761px) and (max-height:500px) and (pointer:coarse)').matches;
+      const compact = innerWidth <= 760 && height < 420;
+      document.body.classList.toggle('review-compact',compact);
+      const width = landscape ? innerWidth-404 : innerWidth;
+      const previewHeight = compact ? 0 : landscape ? height-56 : Math.min(width*9/16,height*.30);
+      const scale = Math.min(width/1920,previewHeight/1080);
+      document.documentElement.style.setProperty('--review-viewport-height',`${height}px`);
+      document.documentElement.style.setProperty('--review-preview-height',`${previewHeight}px`);
+      document.documentElement.style.setProperty('--review-transform',`translate(${(width-1920*scale)/2}px,${(previewHeight-1080*scale)/2}px) scale(${scale})`);
+    }
+    layoutReview(); addEventListener('resize',layoutReview);
+    window.visualViewport?.addEventListener('resize',layoutReview);
     function persist() {
       draft.updatedAt = new Date().toISOString();
       try { localStorage.setItem(key, JSON.stringify(draft)); storageError = false; } catch { storageError = true; }
@@ -137,9 +256,9 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
     }
     function renderSummary() {
       const changes = Object.values(draft.changes), comments = Object.keys(draft.comments);
-      $('review-summary').textContent = `${changes.length} correction(s) · ${comments.length} slide(s) commentée(s)`;
+      $('review-summary').textContent = `${changes.length} correction(s) · ${comments.length} slide(s) commentée(s)${orderChanged() ? ' · ordre modifié' : ''}`;
       $('review-list').replaceChildren();
-      slides.forEach((slide,index) => {
+      orderedSlides().forEach((slide,index) => {
         const id = slide.dataset.reviewSlide, count = changes.filter(c => c.slideId === id).length;
         if (!count && !draft.comments[id]) return;
         const item = document.createElement('li');
@@ -157,6 +276,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
       active = value; document.body.classList.toggle('reviewing', active); panel.hidden = !active;
       blocks.forEach(({el}) => active ? el.setAttribute('contenteditable','true') : el.removeAttribute('contenteditable'));
       toggle.textContent = active ? 'Quitter la révision' : 'Réviser · E'; toggle.setAttribute('aria-expanded',String(active));
+      if (active) { layoutReview(); select.value = current().dataset.reviewSlide; loadSlide(); }
       if (!active) { persist(); toggle.focus(); }
     }
     function exportReview() {
@@ -164,7 +284,8 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
       const payload = {schemaVersion:1, kind:'deck-review', exportedAt:new Date().toISOString(),
         deck:{...config, title:document.title, url:location.href.split('#')[0]},
         startedAt:draft.startedAt, instruction:draft.instruction,
-        agentInstructions:'Comparer la source à sourceHash et aux textes avant modification. Conserver les corrections directes, interpréter les commentaires, signaler les conflits sans écraser les changements plus récents. Proposer les modifications dans les fichiers sources et résumer les demandes traitées et restantes.',
+        slideOrder:[...draft.slideOrder],
+        agentInstructions:'Comparer la source à sourceHash et aux textes avant modification. Appliquer slideOrder comme ordre souhaité des identifiants stables ; slideNumber indique la position dans la source d’origine. Conserver les corrections directes, interpréter les commentaires, signaler les conflits sans écraser les changements plus récents. Proposer les modifications dans les fichiers sources et résumer les demandes traitées et restantes.',
         slides:slides.map((slide,index) => ({slideId:slide.dataset.reviewSlide, slideNumber:index+1,
           title:(slide.querySelector('h1,h2,h3')?.textContent || '').trim(),
           comment:draft.comments[slide.dataset.reviewSlide] || '',
@@ -174,13 +295,29 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
       setTimeout(() => URL.revokeObjectURL(url),1000);
     }
     toggle.onclick = () => setActive(); $('review-close').onclick = () => setActive(false); $('review-export').onclick = exportReview;
-    select.onchange = loadComment;
+    select.onchange = () => showSlide(select.value);
+    $('review-prev').onclick = () => showSlide(draft.slideOrder[draft.slideOrder.indexOf(select.value)-1]);
+    $('review-next').onclick = () => showSlide(draft.slideOrder[draft.slideOrder.indexOf(select.value)+1]);
+    $('review-up').onclick = () => moveSlide(draft.slideOrder.indexOf(select.value)-1);
+    $('review-down').onclick = () => moveSlide(draft.slideOrder.indexOf(select.value)+1);
+    $('review-position').onchange = event => moveSlide(Number(event.target.value));
+    $('review-reset-order').onclick = () => {
+      const id = select.value; draft.slideOrder = [...originalOrder]; applyOrder(id); persist(); renderSummary();
+    };
+    blockSelect.onchange = syncTextEditor;
+    textEditor.oninput = () => {
+      const block = blocks.find(block => block.id === blockSelect.value);
+      if (!block) return;
+      if (textEditor.value === block.beforeText) block.el.innerHTML = block.beforeHtml;
+      else block.el.innerText = textEditor.value;
+      saveBlock(block);
+    };
     comment.oninput = () => { if(comment.value.trim()) draft.comments[select.value] = comment.value; else delete draft.comments[select.value]; persist(); renderSummary(); };
     instruction.oninput = () => { draft.instruction = instruction.value; persist(); };
     // Follow presentation navigation without rebuilding the panel on every animation.
     new MutationObserver(() => {
       const id = current().dataset.reviewSlide;
-      if (select.value !== id) { select.value=id; loadComment(); }
+      if (select.value !== id) { select.value=id; loadSlide(); }
     }).observe(document.getElementById('deckStage') || slides[0].parentElement,{subtree:true,attributes:true,attributeFilter:['class']});
     document.addEventListener('paste', event => {
       if (active && event.target.isContentEditable) { event.preventDefault(); document.execCommand('insertText',false,event.clipboardData.getData('text/plain')); }

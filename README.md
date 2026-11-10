@@ -2,7 +2,7 @@
 
 Socle applicatif du projet **Transition Numérique des Systèmes d'Information (TNSI)** — Master 2 MIAGE Apprentissage, Université Paris Dauphine–PSL.
 
-Tout au long des 7 séances (puis la soutenance S8), vous enrichissez cette application pour concevoir un **assistant métier intelligent et robuste**. Le socle fonctionne **100 % en local, sans clé API, sans compte externe ni modèle à télécharger**.
+Tout au long des 7 séances (puis la soutenance S8), vous enrichissez cette application pour concevoir un **assistant métier intelligent et robuste**. Le profil par défaut fonctionne **100 % en local, sans clé API, sans compte externe ni modèle à télécharger**. Google ADK est installé dès le starter et exécute ce profil avec un modèle simulé. Les profils réels Cohere et Gemini sont préparés pour S2 ; les concepts ADK et les tools sont étudiés en S3.
 
 ---
 
@@ -60,6 +60,32 @@ uv sync --extra all       # poste enseignant ou rattrapage complet
 
 ---
 
+## Google ADK : une progression S1 → S3
+
+- **S1** : lancer Streamlit avec `FILROUGE_LLM_PROVIDER=fake`. ADK utilise un modèle local déterministe, sans réseau ni fichier de session persistant.
+- **S2** : copier `.env.example` vers `.env`, choisir `cohere` avec `COHERE_API_KEY` ou `gemini` avec `GOOGLE_API_KEY`, puis redémarrer Streamlit. Le RAG utilise le même port de génération ADK ; on ne détaille pas encore le framework.
+- **S3** : ajouter deux tools et un MCP en lecture seule, puis expliquer `Agent`, `Runner`, `Session`, `Event` et les budgets d’exécution.
+
+Pour observer le même agent dans l’interface de développement ADK, depuis la racine du starter :
+
+```bash
+uv run adk web . --host 127.0.0.1 --port 8001
+```
+
+Choisir **adk_agent**, créer une session et envoyer une question. Les deux interfaces se lancent séparément : Streamlit porte le produit, ADK Web permet d’observer son exécution. ADK Web conserve ses fichiers de développement dans `.adk/` (ignoré par Git). Les sessions du chat Streamlit sont éphémères côté ADK ; l’historique affiché par Streamlit n’est pas une mémoire envoyée au modèle.
+
+La clé et le modèle se configurent dans `.env` :
+
+```dotenv
+FILROUGE_LLM_PROVIDER=cohere
+COHERE_MODEL=command-a-03-2025
+# COHERE_API_KEY=... à renseigner uniquement dans votre .env local
+```
+
+Ou choisir `FILROUGE_LLM_PROVIDER=gemini`, `GEMINI_MODEL=gemini-2.5-flash` et renseigner `GOOGLE_API_KEY`. Ollama reste un secours facultatif (`ollama`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL`). Les comptes, quotas et capacités de tool calling sont à vérifier avant la séance. Une clé manquante ou une panne affiche une erreur ; aucun repli automatique en simulation.
+
+ADK 2.14.0 est fixé dans `pyproject.toml` ; `uv.lock` fixe les dépendances transitives, dont LiteLLM pour Cohere/Ollama. L’installation est plus volumineuse que le socle Streamlit seul. Aucun SDK Chroma ou Neo4j n’est nécessaire au démarrage S1.
+
 ## 🎯 Mission Séance 1 : personnaliser votre vitrine
 
 1. Ouvrez la page **🚀 Projet** dans le menu latéral.
@@ -97,7 +123,9 @@ src/filrouge/
 │   └── use_cases/     # ChatWithSimulation
 │
 ├── adapters/          # 🔌 Implémentations concrètes des ports
-│   ├── fake_text_generator.py   # Simulateur de réponses, sans clé
+│   ├── adk_text_generator.py    # Agent et Runner ADK derrière le port
+│   ├── adk_models.py            # Modèle local, Cohere, Gemini, Ollama
+│   ├── fake_text_generator.py   # Réponse déterministe utilisée par le modèle ADK local
 │   └── sqlite_connection.py     # Connexion SQLite (prête pour les lots suivants, sans table)
 │
 ├── bootstrap.py       # Assemble use cases et adaptateurs
