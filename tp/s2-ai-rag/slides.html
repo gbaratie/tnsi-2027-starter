@@ -1030,7 +1030,7 @@
         body.deck-player-ready.reviewing:not(.review-text-focus) #deckStage{transform:var(--deck-player-transform)!important}
       }
       @media screen and (max-width:760px),screen and (max-height:500px) and (pointer:coarse){
-        #deck-player{gap:4px;padding-left:4px;padding-right:4px}
+        #deck-player{gap:4px;padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px))}
         #deck-player .deck-player-controls{justify-content:flex-start;gap:4px}
         #deck-player .hud-group{gap:4px}
         body.deck-player-ready.reviewing #deck-player{display:none}
