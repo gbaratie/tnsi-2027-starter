@@ -921,7 +921,7 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
       }
       #deck-player{position:fixed;inset:auto 0 0;height:var(--deck-player-height);padding:3px max(10px,env(safe-area-inset-right)) calc(3px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left));display:flex;align-items:center;gap:10px;z-index:1000;background:#071a38;color:#c4d6ef;border-top:1px solid #263c5c;font:13px/1.4 'IBM Plex Sans',system-ui,sans-serif;box-sizing:border-box}
       #deck-player *{box-sizing:border-box}
-      #deck-player .deck-player-controls{position:static!important;inset:auto!important;transform:none!important;display:flex!important;flex:1;min-width:0;width:auto!important;max-width:none!important;height:44px!important;min-height:0!important;gap:8px;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;overflow-x:auto;scrollbar-width:none;justify-content:center;white-space:nowrap;color:inherit!important}
+      #deck-player .deck-player-controls{position:relative!important;z-index:0!important;inset:auto!important;transform:none!important;display:flex!important;flex:1;min-width:0;width:auto!important;max-width:none!important;height:44px!important;min-height:0!important;gap:8px;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;overflow-x:auto;scrollbar-width:none;justify-content:center;white-space:nowrap;color:inherit!important}
       #deck-player .deck-player-controls::-webkit-scrollbar{display:none}
       #deck-player .hud-group{display:flex;align-items:center;gap:8px;flex:0 0 auto}
       #deck-player button,#deck-player a{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-width:40px;min-height:40px;height:40px;padding:6px 9px;border:1px solid transparent;border-radius:4px;background:transparent;color:inherit;font:13px/1.3 'IBM Plex Sans',system-ui,sans-serif;text-decoration:none;cursor:pointer;box-shadow:none;letter-spacing:normal;text-transform:none}
@@ -932,7 +932,8 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
       #deck-player #slideCounter,#deck-player #counter,#deck-player #count{font:12px/1.4 'IBM Plex Mono',monospace;color:#a9bed9;white-space:nowrap}
       #deck-player .hint,body.deck-player-ready .key-hint,body.deck-player-ready .hud-hint{display:none!important}
       #deck-player .course-save{position:static!important;inset:auto!important;transform:none!important}
-      #deck-home svg{width:18px;height:18px}
+      #deck-home{position:relative;z-index:1;touch-action:manipulation}
+      #deck-home svg{width:18px;height:18px;pointer-events:none}
       body.deck-player-ready .progress-track,body.deck-player-ready .hud-progress-track,body.deck-player-ready .hud>.progress,body.deck-player-ready #progress-bar{display:none!important}
       #deck-player-progress{position:absolute;inset:0 0 auto;height:2px;background:transparent;pointer-events:none}
       #deck-player-progress-fill{height:100%;background:#7899c3;transition:width .2s ease}
@@ -963,6 +964,43 @@ html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--stage
       ? new URL('../../index.html',location.href).href : 'https://gbaratie.github.io/tnsi-2027-slides/';
     home.title='Tous les decks';home.setAttribute('aria-label','Revenir au sommaire de tous les decks');
     home.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+    // A Home Screen web app must not rely only on a synthesized mouse click.
+    let leaving=false,touch=null;
+    const navigateHome=()=>{
+      if(leaving)return;leaving=true;
+      const go=()=>location.assign(home.href);
+      const fullscreen=document.fullscreenElement || document.webkitFullscreenElement;
+      const exit=document.exitFullscreen || document.webkitExitFullscreen;
+      if(fullscreen && typeof exit==='function'){
+        try{Promise.resolve(exit.call(document)).then(go,go);}catch{go();}
+      }else go();
+    };
+    home.addEventListener('click',event=>{
+      if(event.button!==0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)return;
+      event.preventDefault();navigateHome();
+    });
+    home.addEventListener('touchstart',event=>{
+      touch=event.touches.length===1?{x:event.touches[0].clientX,y:event.touches[0].clientY,moved:false}:null;
+    },{passive:true});
+    home.addEventListener('touchmove',event=>{
+      if(touch && event.touches.length===1){
+        const point=event.touches[0];
+        touch.moved ||= Math.hypot(point.clientX-touch.x,point.clientY-touch.y)>12;
+      }else touch=null;
+    },{passive:true});
+    home.addEventListener('touchcancel',()=>{touch=null;},{passive:true});
+    home.addEventListener('touchend',event=>{
+      const start=touch;touch=null;
+      if(!start || event.touches.length)return;
+      const point=event.changedTouches[0];
+      if(event.cancelable)event.preventDefault();
+      if(!start.moved && Math.hypot(point.clientX-start.x,point.clientY-start.y)<=12)navigateHome();
+    },{passive:false});
+    // Keep toolbar interactions out of legacy, window-level slide swipe handlers.
+    for(const type of ['touchstart','touchmove','touchend','touchcancel']){
+      player.addEventListener(type,event=>event.stopPropagation(),{passive:true});
+    }
+    addEventListener('pageshow',()=>{leaving=false;touch=null;});
     controls.classList.add('deck-player-controls');
     document.querySelectorAll('.course-save').forEach(button=>{if(!stage.contains(button))controls.append(button);});
     player.prepend(home);player.append(controls);
